@@ -1,0 +1,234 @@
+package com.example.academicleveling.ui.profile
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.academicleveling.data.AppState
+import com.example.academicleveling.ui.shared.*
+import com.example.academicleveling.ui.theme.*
+
+@Composable
+fun ProfileSettingsScreen(onBack: () -> Unit) {
+    var displayName     by remember { mutableStateOf(AppState.name) }
+    var email           by remember { mutableStateOf(AppState.email) }
+    var currentPw       by remember { mutableStateOf("") }
+    var newPw           by remember { mutableStateOf("") }
+    var confirmPw       by remember { mutableStateOf("") }
+
+    var showCurrent     by remember { mutableStateOf(false) }
+    var showNew         by remember { mutableStateOf(false) }
+    var showConfirm     by remember { mutableStateOf(false) }
+
+    var nameError       by remember { mutableStateOf("") }
+    var emailError      by remember { mutableStateOf("") }
+    var pwError         by remember { mutableStateOf("") }
+    var saveMsg         by remember { mutableStateOf("") }
+
+    Column(Modifier.fillMaxSize().background(BgPrimary)) {
+        SubPageBar("ACCOUNT SETTINGS", onBack)
+
+        Column(
+            Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            // ── Display Name (Icon: Person)
+            SettingsSection(title = "DISPLAY NAME", icon = Icons.Default.Person) {
+                OutlinedTextField(
+                    value         = displayName,
+                    onValueChange = { displayName = it; nameError = ""; saveMsg = "" },
+                    modifier      = Modifier.fillMaxWidth(),
+                    label         = { Text("Username", fontSize = 12.sp) },
+                    isError       = nameError.isNotBlank(),
+                    singleLine    = true,
+                    shape         = RoundedCornerShape(10.dp),
+                    colors        = fieldColors()
+                )
+                if (nameError.isNotBlank())
+                    Text(nameError, color = DangerRed, fontSize = 11.sp)
+            }
+
+            // ── Email (Icon: Email)
+            SettingsSection(title = "EMAIL ADDRESS", icon = Icons.Filled.Email) {
+                OutlinedTextField(
+                    value         = email,
+                    onValueChange = { email = it; emailError = ""; saveMsg = "" },
+                    modifier      = Modifier.fillMaxWidth(),
+                    label         = { Text("Email", fontSize = 12.sp) },
+                    isError       = emailError.isNotBlank(),
+                    singleLine    = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    shape         = RoundedCornerShape(10.dp),
+                    colors        = fieldColors()
+                )
+                if (emailError.isNotBlank())
+                    Text(emailError, color = DangerRed, fontSize = 11.sp)
+            }
+
+            // ── Password (Icon: Lock)
+            SettingsSection(
+                title = "CHANGE PASSWORD",
+                icon = Icons.Default.Lock,
+                subtitle = "Leave blank to keep current password"
+            ) {
+                PwField("Current Password", currentPw, showCurrent,
+                    onToggle = { showCurrent = !showCurrent },
+                    onChange = { currentPw = it; pwError = ""; saveMsg = "" })
+
+                PwField("New Password", newPw, showNew,
+                    onToggle = { showNew = !showNew },
+                    onChange = { newPw = it; pwError = ""; saveMsg = "" })
+
+                PwField("Confirm New Password", confirmPw, showConfirm,
+                    onToggle = { showConfirm = !showConfirm },
+                    onChange = { confirmPw = it; pwError = ""; saveMsg = "" })
+
+                if (pwError.isNotBlank())
+                    Text(pwError, color = DangerRed, fontSize = 11.sp)
+            }
+
+            // ── Save message
+            if (saveMsg.isNotBlank()) {
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                    .background(SuccessGreen.copy(.12f)).padding(10.dp),
+                    Alignment.Center) {
+                    Text(saveMsg, color = SuccessGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            TealButton("SAVE CHANGES", onClick = {
+                var ok = true
+                if (displayName.isBlank()) { nameError = "Name cannot be empty"; ok = false }
+                if (email.isBlank() || !email.contains("@")) {
+                    emailError = "Enter a valid email"; ok = false
+                }
+                if (newPw.isNotBlank()) {
+                    if (newPw.length < 6) { pwError = "Password must be at least 6 characters"; ok = false }
+                    else if (newPw != confirmPw) { pwError = "Passwords do not match"; ok = false }
+                }
+                if (ok) {
+                    AppState.updateProfile(displayName.trim(), email.trim())
+                    currentPw = ""; newPw = ""; confirmPw = ""
+                    saveMsg = "✅ Changes saved!"
+
+                }
+            }, modifier = Modifier.fillMaxWidth())
+
+            // ── Account info (read-only)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = BgCard),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(1.dp)
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("ACCOUNT INFO", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
+                        color = TextSecondary, letterSpacing = 1.sp)
+                    InfoRow("Level", "${AppState.level}")
+                    InfoRow("Rank",  "${AppState.rank}")
+                    InfoRow("Grade", AppState.grade?.display ?: "Not set")
+                    InfoRow("Total XP", "${AppState.totalXP}")
+                }
+            }
+
+            Spacer(Modifier.height(40.dp))
+        }
+    }
+}
+
+// ── Helpers updated to use ImageVector ──────────────────────────────────────
+
+@Composable
+private fun SettingsSection(
+    title:    String,
+    icon:     ImageVector,
+    subtitle: String = "",
+    content:  @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BgCard),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = Teal, modifier = Modifier.size(18.dp)) // Naka-Teal na icon
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(title, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
+                        color = TextSecondary, letterSpacing = 1.sp)
+                    if (subtitle.isNotBlank())
+                        Text(subtitle, fontSize = 9.sp, color = TextMuted)
+                }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun PwField(
+    label:    String,
+    value:    String,
+    visible:  Boolean,
+    onToggle: () -> Unit,
+    onChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value         = value,
+        onValueChange = onChange,
+        modifier      = Modifier.fillMaxWidth(),
+        label         = { Text(label, fontSize = 12.sp) },
+        singleLine    = true,
+        shape         = RoundedCornerShape(10.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon  = {
+            IconButton(onClick = onToggle) {
+                Icon(
+                    imageVector = if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null,
+                    tint = TextMuted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        },
+        colors = fieldColors()
+    )
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+        Text(label, fontSize = 12.sp, color = TextSecondary)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+    }
+}
+
+@Composable
+private fun fieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor   = Teal,
+    unfocusedBorderColor = Color.White.copy(0.1f),
+    focusedLabelColor    = Teal,
+    unfocusedLabelColor  = TextSecondary
+)
