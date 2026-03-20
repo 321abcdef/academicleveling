@@ -55,6 +55,36 @@ fun TimerScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF001A1A))
+                        .border(1.dp, Teal.copy(.25f), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Teal,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "Study Timer Tab",
+                                fontSize = 12.sp,
+                                color = Teal,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        Text(
+                            "Quiz countdown timer appears inside the Play Quiz screen.",
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                    }
+                }
+
                 // MODE TABS
                 Row(
                     Modifier.fillMaxWidth()

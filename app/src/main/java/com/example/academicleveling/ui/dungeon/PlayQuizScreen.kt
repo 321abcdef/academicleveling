@@ -187,7 +187,7 @@ fun PlayQuizScreen(
                             Text("%02d:%02d".format(displaySecs / 60, displaySecs % 60),
                                 fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = timerColor)
                         }
-                        Text("timer", fontSize = 9.sp, color = Color.White.copy(.6f))
+                        Text("quiz countdown", fontSize = 9.sp, color = Color.White.copy(.6f))
                     } else {
                         val streakColor = if (correctStreak >= 3) Gold else Color.White
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -24,6 +24,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.academicleveling.data.AppState
 import com.example.academicleveling.ui.auth.LoginScreen
 import com.example.academicleveling.ui.auth.SignupScreen
+import com.example.academicleveling.ui.dungeon.DungeonStartTarget
 import com.example.academicleveling.ui.dungeon.DungeonScreen
 import com.example.academicleveling.ui.inventory.InventoryScreen
 import com.example.academicleveling.ui.profile.ProfileScreen
@@ -59,6 +60,7 @@ private fun AcademicLevelingApp() {
     var currentScreen by remember {
         mutableStateOf(if (AppState.loggedIn) Screen.QUESTS else Screen.LOGIN)
     }
+    var dungeonStartTarget by remember { mutableStateOf(DungeonStartTarget.HUB) }
 
     if (currentScreen in MAIN_SCREENS) {
         Scaffold(
@@ -66,15 +68,40 @@ private fun AcademicLevelingApp() {
             bottomBar = {
                 BottomNavBar(selected = currentScreen) { screen ->
                     SoundManager.navigate()
+                    if (screen != Screen.DUNGEON) {
+                        dungeonStartTarget = DungeonStartTarget.HUB
+                    }
                     currentScreen = screen
                 }
             }
         ) { padding ->
             Box(Modifier.padding(padding)) {
                 when (currentScreen) {
-                    Screen.QUESTS  -> QuestsScreen()
+                    Screen.QUESTS  -> QuestsScreen(
+                        onOpenCommunity = {
+                            dungeonStartTarget = DungeonStartTarget.COMMUNITY
+                            currentScreen = Screen.DUNGEON
+                        },
+                        onEnterCode = {
+                            dungeonStartTarget = DungeonStartTarget.CODE
+                            currentScreen = Screen.DUNGEON
+                        },
+                        onOpenMyQuizzes = {
+                            dungeonStartTarget = DungeonStartTarget.MY
+                            currentScreen = Screen.DUNGEON
+                        },
+                        onOpenHistory = {
+                            dungeonStartTarget = DungeonStartTarget.HISTORY
+                            currentScreen = Screen.DUNGEON
+                        },
+                        onOpenShop = { currentScreen = Screen.BAZAAR },
+                        onOpenProfile = { currentScreen = Screen.PROFILE }
+                    )
                     Screen.BAZAAR  -> InventoryScreen()
-                    Screen.DUNGEON -> DungeonScreen()
+                    Screen.DUNGEON -> DungeonScreen(
+                        startTarget = dungeonStartTarget,
+                        onStartTargetConsumed = { dungeonStartTarget = DungeonStartTarget.HUB }
+                    )
                     Screen.TIMER   -> TimerScreen()
                     Screen.PROFILE -> ProfileScreen(
                         onLogout = { AppState.logout(); currentScreen = Screen.LOGIN }

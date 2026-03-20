@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Red
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,7 +29,14 @@ import com.example.academicleveling.ui.shared.TopBar
 import com.example.academicleveling.ui.theme.*
 
 @Composable
-fun QuestsScreen() {
+fun QuestsScreen(
+    onOpenCommunity: () -> Unit = {},
+    onEnterCode: () -> Unit = {},
+    onOpenMyQuizzes: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenShop: () -> Unit = {},
+    onOpenProfile: () -> Unit = {}
+) {
     var dailyClaimMsg  by remember { mutableStateOf("") }
     var weeklyClaimMsg by remember { mutableStateOf("") }
 
@@ -100,6 +106,15 @@ fun QuestsScreen() {
                     MiniStatCard(Modifier.weight(1f), Icons.Default.Quiz,       "${AppState.quizzesCompleted}", "quizzes done", Teal)
                     MiniStatCard(Modifier.weight(1f), Icons.Default.Paid,       "${AppState.coins}",            "coins",        Gold)
                 }
+
+                HomeQuickActions(
+                    onOpenCommunity = onOpenCommunity,
+                    onEnterCode = onEnterCode,
+                    onOpenMyQuizzes = onOpenMyQuizzes,
+                    onOpenHistory = onOpenHistory,
+                    onOpenShop = onOpenShop,
+                    onOpenProfile = onOpenProfile
+                )
 
                 // Daily Quests
                 QuestSection(
@@ -349,5 +364,76 @@ private fun MiniStatCard(
         )
         Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = color)
         Text(label, fontSize = 9.sp,  color = TextMuted)
+    }
+}
+
+@Composable
+private fun HomeQuickActions(
+    onOpenCommunity: () -> Unit,
+    onEnterCode: () -> Unit,
+    onOpenMyQuizzes: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenShop: () -> Unit,
+    onOpenProfile: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF1A1A2E))
+            .border(1.dp, Teal.copy(.25f), RoundedCornerShape(14.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.RocketLaunch, contentDescription = null, tint = Teal, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "QUICK ACTIONS",
+                fontSize = 11.sp,
+                color = Teal,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.6.sp
+            )
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(Modifier.weight(1f), Icons.Default.Verified, "Community", Accent, onOpenCommunity)
+            ActionButton(Modifier.weight(1f), Icons.Default.VpnKey, "Enter Code", SuccessGreen, onEnterCode)
+            ActionButton(Modifier.weight(1f), Icons.Default.Book, "My Quizzes", Teal, onOpenMyQuizzes)
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(Modifier.weight(1f), Icons.Default.History, "History", Gold, onOpenHistory)
+            ActionButton(Modifier.weight(1f), Icons.Default.Storefront, "Shop", Blue, onOpenShop)
+            ActionButton(Modifier.weight(1f), Icons.Default.Person, "Profile", Purple, onOpenProfile)
+        }
+    }
+}
+
+@Composable
+private fun ActionButton(
+    modifier: Modifier,
+    icon: ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF0D0D1A))
+            .border(1.dp, tint.copy(.3f), RoundedCornerShape(10.dp))
+            .clickable {
+                SoundManager.navigate()
+                onClick()
+            }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.height(3.dp))
+            Text(label, fontSize = 9.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+        }
     }
 }

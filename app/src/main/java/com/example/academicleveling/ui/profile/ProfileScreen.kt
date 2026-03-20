@@ -25,9 +25,15 @@ import com.example.academicleveling.ui.theme.*
 @Composable
 fun ProfileScreen(onLogout: () -> Unit) {
     var showSettings by remember { mutableStateOf(false) }
+    var showProgress by remember { mutableStateOf(false) }
 
     if (showSettings) {
         ProfileSettingsScreen(onBack = { showSettings = false })
+        return
+    }
+
+    if (showProgress) {
+        PlayerProgressScreen(onBack = { showProgress = false })
         return
     }
 
@@ -121,6 +127,31 @@ fun ProfileScreen(onLogout: () -> Unit) {
                             StatPill("Study Mins", "${AppState.totalMins}",         Blue)
                             StatPill("Quizzes",    "${AppState.quizzesCompleted}",  Accent)
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Box(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(Color(0xFF0D0D1A))
+                                .clickable { SoundManager.navigate(); showProgress = true }
+                                .padding(14.dp)
+                        ) {
+                            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.WorkspacePremium, null, tint = Teal, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            "Gamification Feature", fontSize = 13.sp,
+                                            fontWeight = FontWeight.ExtraBold, color = TextPrimary
+                                        )
+                                        Text(
+                                            "Player progress, equipment, achievements",
+                                            fontSize = 10.sp, color = TextMuted
+                                        )
+                                    }
+                                }
+                                Icon(Icons.Default.ChevronRight, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
 
                     // ACHIEVEMENTS
@@ -151,7 +182,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                                             fontWeight = FontWeight.ExtraBold, color = TextPrimary
                                         )
                                         Text(
-                                            "Change username, email, or password",
+                                            "Manage account information and preferences",
                                             fontSize = 10.sp, color = TextMuted
                                         )
                                     }

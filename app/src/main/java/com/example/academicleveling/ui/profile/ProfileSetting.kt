@@ -47,6 +47,18 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
         SubPageBar("ACCOUNT SETTINGS", onBack)
 
+        Box(
+            Modifier.fillMaxWidth()
+                .background(Color(0xFF0D0D1A))
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                "Manage personal account information and preferences",
+                color = TextSecondary,
+                fontSize = 11.sp
+            )
+        }
+
         Column(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 14.dp),
