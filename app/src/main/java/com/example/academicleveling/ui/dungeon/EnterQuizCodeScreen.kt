@@ -114,7 +114,7 @@ fun EnterQuizCodeScreen(
                                 textColor = TextPrimary
                             )
                             TealButton(
-                                label = "JOIN QUIZ",
+                                label = "FIND QUIZ",
                                 onClick = {
                                     val quiz = AppState.findByCode(code)
                                     if (quiz != null) {
@@ -146,7 +146,7 @@ fun EnterQuizCodeScreen(
                             Text("How this works", color = Teal, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
                         }
                         Text("1. Enter a shared quiz code.", color = TextSecondary, fontSize = 11.sp)
-                        Text("2. Tap JOIN QUIZ.", color = TextSecondary, fontSize = 11.sp)
+                        Text("2. Tap FIND QUIZ.", color = TextSecondary, fontSize = 11.sp)
                         Text("3. You will proceed to the Play Quiz screen.", color = SuccessGreen, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }

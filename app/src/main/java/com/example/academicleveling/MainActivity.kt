@@ -158,7 +158,7 @@ fun NavigationIcon(icon: Any, contentDescription: String, tint: Color, modifier:
             Icon(
                 painter = painterResource(id = icon),
                 contentDescription = contentDescription,
-                tint = tint,
+                tint = Color.Unspecified,
                 modifier = modifier
             )
         }

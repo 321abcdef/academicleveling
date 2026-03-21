@@ -2,6 +2,7 @@ package com.example.academicleveling.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.image.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +30,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
+<<<<<<< Updated upstream
 import androidx.compose.ui.graphics.vector.ImageVector
+=======
+import androidx.compose.ui.res.painterResource
+>>>>>>> Stashed changes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.academicleveling.R
 import com.example.academicleveling.data.AppState
 import com.example.academicleveling.data.EquipSlot
 import com.example.academicleveling.data.Item
@@ -95,18 +102,18 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                     }
                 }
 
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(BgCard, RoundedCornerShape(12.dp))
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("EQUIPMENT", fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.ExtraBold)
-                    EquipmentRow("Weapon", equippedWeapon?.name ?: "None Equipped", Icons.Default.WorkspacePremium)
-                    EquipmentRow("Armor", AppState.equipment.armor?.name ?: "None Equipped", Icons.Default.Shield)
-                    EquipmentRow("Accessory 1", AppState.equipment.acc1?.name ?: "None Equipped", Icons.Default.Star)
-                    EquipmentRow("Accessory 2", AppState.equipment.acc2?.name ?: "None Equipped", Icons.Default.Star)
+                    Image(
+                        painter = painterResource(id = R.drawable.sword),
+                        contentDescription = "Sword",
+                        modifier = Modifier.size(150.dp),
+                        contentScale = ContentScale.Fit
+                    )
                 }
 
                 Column(
@@ -116,23 +123,19 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("WEAPONS", fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.ExtraBold)
-                    weapons.forEach { item ->
+                    Text("EQUIPMENT", fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.ExtraBold)
+                    weapons.take(4).forEach { item ->
                         val requiredLevel = requiredLevelFor(item)
                         val unlocked = AppState.level >= requiredLevel
-                        WeaponRow(
+                        EquipmentWeaponRow(
                             item = item,
                             unlocked = unlocked,
-                            requiredLevel = requiredLevel,
                             equipped = equippedWeapon?.id == item.id,
+                            requiredLevel = requiredLevel,
                             onEquip = {
-                                if (unlocked) {
-                                    AppState.equip(item)
-                                }
+                                if (unlocked) AppState.equip(item)
                             },
-                            onUnequip = {
-                                AppState.unequip(EquipSlot.WEAPON)
-                            }
+                            onUnequip = { AppState.unequip(EquipSlot.WEAPON) }
                         )
                     }
                 }
@@ -161,7 +164,7 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun WeaponRow(
+private fun EquipmentWeaponRow(
     item: Item,
     unlocked: Boolean,
     requiredLevel: Int,
@@ -169,67 +172,41 @@ private fun WeaponRow(
     onEquip: () -> Unit,
     onUnequip: () -> Unit
 ) {
-    val chipColor = rarityColor(item.rarity)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF0D0D1A), RoundedCornerShape(10.dp))
-            .border(1.dp, if (unlocked) chipColor.copy(0.35f) else Color.White.copy(0.12f), RoundedCornerShape(10.dp))
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.SportsEsports, contentDescription = null, tint = if (unlocked) chipColor else TextMuted, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(item.name, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            Box(
-                modifier = Modifier
-                    .background(chipColor.copy(0.15f), RoundedCornerShape(5.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(rarityLabel(item.rarity), color = chipColor, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-            }
-        }
-
-        if (unlocked) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(item.description, color = TextSecondary, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp))
-                if (equipped) {
-                    TealButton("EQUIPPED", onUnequip, modifier = Modifier.width(92.dp), color = SuccessGreen, textColor = Color.Black)
-                } else {
-                    TealButton("EQUIP", onEquip, modifier = Modifier.width(92.dp))
-                }
-            }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Lock, contentDescription = null, tint = TextMuted, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Locked until Level $requiredLevel", color = TextMuted, fontSize = 11.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun EquipmentRow(label: String, value: String, icon: ImageVector) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF0D0D1A), RoundedCornerShape(8.dp))
+            .background(Color(0xFF0D0D1A), RoundedCornerShape(10.dp))
+            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(10.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = Teal, modifier = Modifier.size(14.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Default.SportsEsports, contentDescription = null, tint = if (unlocked) Teal else TextMuted, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
-            Text(label, color = TextSecondary, fontSize = 11.sp)
+            Text(
+                text = "WEAPON: [${item.name.uppercase()}]",
+                color = if (unlocked) TextPrimary else TextMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
-        Text(value, color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+        if (unlocked) {
+            if (equipped) {
+                TealButton("CHANGE", onUnequip, modifier = Modifier.width(84.dp), color = Teal, textColor = Color.Black)
+            } else {
+                TealButton("EQUIP", onEquip, modifier = Modifier.width(84.dp))
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .background(Color.White.copy(0.08f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text("L${requiredLevel}", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 

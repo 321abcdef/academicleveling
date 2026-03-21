@@ -140,7 +140,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                                     Spacer(Modifier.width(10.dp))
                                     Column {
                                         Text(
-                                            "Gamification Feature", fontSize = 13.sp,
+                                            "PLAYER PROGRESS", fontSize = 13.sp,
                                             fontWeight = FontWeight.ExtraBold, color = TextPrimary
                                         )
                                         Text(
