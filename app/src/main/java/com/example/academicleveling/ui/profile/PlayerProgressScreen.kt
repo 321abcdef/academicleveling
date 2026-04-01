@@ -17,13 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Paid
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SportsEsports
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -31,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,9 +38,6 @@ import com.example.academicleveling.R
 import com.example.academicleveling.data.AppState
 import com.example.academicleveling.data.EquipSlot
 import com.example.academicleveling.data.Item
-import com.example.academicleveling.data.ItemRarity
-import com.example.academicleveling.data.rarityColor
-import com.example.academicleveling.data.rarityLabel
 import com.example.academicleveling.ui.shared.SpaceBackground
 import com.example.academicleveling.ui.shared.SubPageBar
 import com.example.academicleveling.ui.shared.TealButton
@@ -105,9 +99,14 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    val imageRes = when (equippedWeapon?.name) {
+                        "Ancient Tome"  -> R.drawable.book
+                        else -> R.drawable.sword
+                    }
+
                     Image(
-                        painter = painterResource(id = R.drawable.sword),
-                        contentDescription = "Sword",
+                        painter = painterResource(id = imageRes),
+                        contentDescription = "Equipped Weapon",
                         modifier = Modifier.size(150.dp),
                         contentScale = ContentScale.Fit
                     )
@@ -121,18 +120,20 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text("EQUIPMENT", fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.ExtraBold)
-                    weapons.take(4).forEach { item ->
-                        val requiredLevel = requiredLevelFor(item)
-                        val unlocked = AppState.level >= requiredLevel
+                    AppState.inventory.forEach { item ->
+                        val unlocked = AppState.level >= item.levelReq
                         EquipmentWeaponRow(
                             item = item,
                             unlocked = unlocked,
-                            equipped = equippedWeapon?.id == item.id,
-                            requiredLevel = requiredLevel,
+                            equipped = (item.slot == EquipSlot.WEAPON && AppState.equipment.weapon?.id == item.id) ||
+                                       (item.slot == EquipSlot.ARMOR  && AppState.equipment.armor?.id == item.id) ||
+                                       (item.slot == EquipSlot.ACC1   && AppState.equipment.acc1?.id == item.id) ||
+                                       (item.slot == EquipSlot.ACC2   && AppState.equipment.acc2?.id == item.id),
+                            requiredLevel = item.levelReq,
                             onEquip = {
                                 if (unlocked) AppState.equip(item)
                             },
-                            onUnequip = { AppState.unequip(EquipSlot.WEAPON) }
+                            onUnequip = { item.slot?.let { AppState.unequip(it) } }
                         )
                     }
                 }
@@ -179,10 +180,15 @@ private fun EquipmentWeaponRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            Icon(Icons.Default.SportsEsports, contentDescription = null, tint = if (unlocked) Teal else TextMuted, modifier = Modifier.size(14.dp))
+            val icon = when(item.slot) {
+                EquipSlot.WEAPON -> Icons.Default.HistoryEdu
+                EquipSlot.ARMOR -> Icons.Default.AutoAwesome
+                else -> Icons.Default.AutoStories
+            }
+            Icon(icon, contentDescription = null, tint = if (unlocked) Teal else TextMuted, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
             Text(
-                text = "WEAPON: [${item.name.uppercase()}]",
+                text = "${item.slot?.name ?: "ITEM"}: [${item.name.uppercase()}]",
                 color = if (unlocked) TextPrimary else TextMuted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
@@ -191,7 +197,7 @@ private fun EquipmentWeaponRow(
 
         if (unlocked) {
             if (equipped) {
-                TealButton("CHANGE", onUnequip, modifier = Modifier.width(84.dp), color = Teal, textColor = Color.Black)
+                TealButton("UNEQUIP", onUnequip, modifier = Modifier.width(84.dp), color = Teal, textColor = Color.Black)
             } else {
                 TealButton("EQUIP", onEquip, modifier = Modifier.width(84.dp))
             }
@@ -217,11 +223,4 @@ private fun MiniStat(label: String, value: String, color: Color) {
         }
         Text(label, fontSize = 9.sp, color = TextMuted)
     }
-}
-
-private fun requiredLevelFor(item: Item): Int = when (item.rarity) {
-    ItemRarity.COMMON -> 1
-    ItemRarity.RARE -> 5
-    ItemRarity.EPIC -> 10
-    ItemRarity.LEGENDARY -> 15
 }

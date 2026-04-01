@@ -154,9 +154,9 @@ object AppState {
     fun equip(item: Item) {
         equipment = when (item.slot) {
             EquipSlot.WEAPON -> equipment.copy(weapon = item)
-            EquipSlot.ARMOR  -> equipment.copy(armor  = item)
-            EquipSlot.ACC1   -> equipment.copy(acc1   = item)
-            EquipSlot.ACC2   -> equipment.copy(acc2   = item)
+            EquipSlot.ARMOR  -> equipment.copy(armor = item)
+            EquipSlot.ACC1   -> equipment.copy(acc1 = item)
+            EquipSlot.ACC2   -> equipment.copy(acc2 = item)
             null             -> equipment
         }; save()
     }
@@ -164,9 +164,9 @@ object AppState {
     fun unequip(slot: EquipSlot) {
         equipment = when (slot) {
             EquipSlot.WEAPON -> equipment.copy(weapon = null)
-            EquipSlot.ARMOR  -> equipment.copy(armor  = null)
-            EquipSlot.ACC1   -> equipment.copy(acc1   = null)
-            EquipSlot.ACC2   -> equipment.copy(acc2   = null)
+            EquipSlot.ARMOR  -> equipment.copy(armor = null)
+            EquipSlot.ACC1   -> equipment.copy(acc1 = null)
+            EquipSlot.ACC2   -> equipment.copy(acc2 = null)
         }; save()
     }
 

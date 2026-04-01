@@ -14,7 +14,7 @@ enum class GradeLevel(val display: String) {
 }
 
 enum class Rank { E, D, C, B, A, S }
-enum class ItemRarity { COMMON, RARE, EPIC, LEGENDARY }
+enum class ItemRarity { COMMON, RARE, EPIC, LEGENDARY, MYTHIC }
 enum class EquipSlot { WEAPON, ARMOR, ACC1, ACC2 }
 enum class Difficulty { EASY, MEDIUM, HARD }
 enum class QuizTimerMode { NONE, WHOLE_QUIZ, PER_QUESTION }
@@ -66,7 +66,8 @@ data class Item(
     val xpBonus:     Int    = 0,
     val statBonus:   String = "",
     val description: String = "",
-    val qty:         Int    = 1
+    val qty:         Int    = 1,
+    val levelReq:    Int    = 1
 )
 
 data class Equipment(
@@ -175,11 +176,13 @@ fun rarityColor(r: ItemRarity) = when (r) {
     ItemRarity.RARE      -> Color(0xFF2196F3)
     ItemRarity.EPIC      -> Color(0xFF9C27B0)
     ItemRarity.LEGENDARY -> Color(0xFFFFB700)
+    ItemRarity.MYTHIC    -> Color(0xFFE91E63)
 }
 
 fun rarityLabel(r: ItemRarity) = when (r) {
     ItemRarity.COMMON -> "COMMON"; ItemRarity.RARE -> "RARE"
     ItemRarity.EPIC   -> "EPIC";   ItemRarity.LEGENDARY -> "LEGENDARY"
+    ItemRarity.MYTHIC -> "MYTHIC"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,11 +204,20 @@ val ALL_ACHIEVEMENTS: List<Achievement> = listOf(
 )
 
 val DEFAULT_INVENTORY: List<Item> = listOf(
-    Item(1, "Scholar's Pen", ItemRarity.COMMON,    EquipSlot.WEAPON, xpBonus = 5,  description = "+5% XP on quizzes"),
-    Item(2, "Focus Ring",    ItemRarity.RARE,      EquipSlot.ACC1,   xpBonus = 10, description = "+10% XP bonus"),
-    Item(3, "Student Coat",  ItemRarity.COMMON,    EquipSlot.ARMOR,  xpBonus = 3,  description = "+3 XP per session"),
-    Item(4, "Lucky Charm",   ItemRarity.EPIC,      EquipSlot.ACC2,   xpBonus = 15, description = "+15% all XP"),
-    Item(5, "Ancient Tome",  ItemRarity.LEGENDARY, EquipSlot.WEAPON, xpBonus = 25, description = "+25% quiz XP")
+    Item(1, "Scholar's Pen", ItemRarity.COMMON,    EquipSlot.WEAPON, xpBonus = 5,  levelReq = 1,   description = "+5% XP on quizzes"),
+    Item(5, "Ancient Tome",  ItemRarity.LEGENDARY, EquipSlot.WEAPON, xpBonus = 25, levelReq = 15,  description = "+25% quiz XP"),
+
+    // Rank C (Level 30+)
+    Item(6, "Sage's Glasses",      ItemRarity.RARE,      EquipSlot.WEAPON, xpBonus = 20, levelReq = 30,  description = "+20% study focus"),
+
+    // Rank B (Level 50+)
+    Item(8, "Master's Compass",    ItemRarity.EPIC,      EquipSlot.WEAPON, xpBonus = 30, levelReq = 50,  description = "+30% XP from quizzes"),
+
+    // Rank A (Level 70+)
+    Item(10, "Dragon Quill",       ItemRarity.LEGENDARY, EquipSlot.WEAPON, xpBonus = 50, levelReq = 70,  description = "+50% quiz XP"),
+
+    // Rank S (Level 100+)
+    Item(13, "Ethereal Grimoire",  ItemRarity.MYTHIC,    EquipSlot.WEAPON, xpBonus = 75, levelReq = 110, description = "+75% quiz XP bonus")
 )
 
 val DEFAULT_EQUIPMENT: Equipment = Equipment()
@@ -245,4 +257,3 @@ private fun createQuiz(
         quizType = QuizType.MIX, questions = qList
     )
 }
-
