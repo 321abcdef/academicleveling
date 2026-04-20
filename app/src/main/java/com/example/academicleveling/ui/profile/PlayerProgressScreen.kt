@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Paid
-import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -54,7 +53,6 @@ import com.example.academicleveling.ui.theme.rankColor
 @Composable
 fun PlayerProgressScreen(onBack: () -> Unit) {
     val xpPct = (AppState.xp.toFloat() / AppState.maxXP.coerceAtLeast(1)).coerceIn(0f, 1f)
-    val weapons = AppState.inventory.filter { it.slot == EquipSlot.WEAPON }
     val equippedWeapon = AppState.equipment.weapon
 
     SpaceBackground {
@@ -100,7 +98,12 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     val imageRes = when (equippedWeapon?.name) {
-                        "Ancient Tome"  -> R.drawable.book
+                        "Scholar's Pen"    -> R.drawable.sword
+                        "Ancient Tome"     -> R.drawable.book
+                        "Sage's Glasses"   -> R.drawable.sage
+                        "Master's Compass" -> R.drawable.compass
+                        "Dragon Quill"     -> R.drawable.quill
+                        "Ethereal Grimoire" -> R.drawable.grimoire
                         else -> R.drawable.sword
                     }
 
