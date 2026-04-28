@@ -86,6 +86,7 @@ fun LoginScreen(onLogin: () -> Unit, onSignup: () -> Unit) {
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showForgotDialog by remember { mutableStateOf(false) }
 
     SpaceBackground {
         Column(
@@ -154,8 +155,12 @@ fun LoginScreen(onLogin: () -> Unit, onSignup: () -> Unit) {
                     "Forgot Password?",
                     color = Color(0xFF9181FF).copy(alpha = 0.8f),
                     fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 20.dp).clickable { }
+                    modifier = Modifier.padding(top = 20.dp).clickable { showForgotDialog = true }
                 )
+
+                if (showForgotDialog) {
+                    ForgotPasswordDialog(onDismiss = { showForgotDialog = false })
+                }
 
                 Spacer(Modifier.height(60.dp))
 
@@ -267,6 +272,152 @@ fun SignupScreen(onSignup: () -> Unit, onLogin: () -> Unit) {
                         fontSize = 13.sp,
                         modifier = Modifier.clickable { onLogin() }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ForgotPasswordDialog(onDismiss: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var isError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A2E),
+        title = { Text("Forgot Password", color = Color.White) },
+        text = {
+            Column {
+                Text("Enter your email to receive a reset link.", color = Color.White.copy(0.7f), fontSize = 14.sp)
+                Spacer(Modifier.height(16.dp))
+                AuthTextField(value = email, onValueChange = { email = it; message = null }, placeholder = "Email")
+                if (message != null) {
+                    Text(
+                        message!!,
+                        color = if (isError) Color.Red else Color.Green,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (email.isBlank()) return@Button
+                    isLoading = true
+                    com.example.academicleveling.data.ApiRepository.forgotPassword(
+                        email = email,
+                        onSuccess = {
+                            isLoading = false
+                            message = it
+                            isError = false
+                        },
+                        onError = {
+                            isLoading = false
+                            message = it
+                            isError = true
+                        }
+                    )
+                },
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple)
+            ) {
+                if (isLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else Text("Send Link")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = Color.White) }
+        }
+    )
+}
+
+@Composable
+fun ResetPasswordScreen(token: String, email: String, onSuccess: () -> Unit) {
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+
+    SpaceBackground {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 45.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(300.dp))
+            Text("Reset Password", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(email, color = Color.White.copy(0.6f), fontSize = 14.sp)
+            Spacer(Modifier.height(32.dp))
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AuthLabel("New Password")
+                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "New Password", isPassword = true)
+                Spacer(Modifier.height(16.dp))
+                AuthLabel("Confirm New Password")
+                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it; errorMessage = null }, placeholder = "Confirm", isPassword = true)
+
+                if (errorMessage != null) {
+                    Text(errorMessage!!, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+                if (successMessage != null) {
+                    Text(successMessage!!, color = Color.Green, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                Spacer(Modifier.height(30.dp))
+
+                Button(
+                    onClick = {
+                        if (password.isBlank() || confirmPassword.isBlank()) {
+                            errorMessage = "Please fill in all fields"
+                            return@Button
+                        }
+                        if (password != confirmPassword) {
+                            errorMessage = "Passwords do not match"
+                            return@Button
+                        }
+                        isLoading = true
+                        val request = com.example.academicleveling.data.ResetPasswordRequest(
+                            email = email,
+                            password = password,
+                            passwordConfirmation = confirmPassword,
+                            token = token
+                        )
+                        com.example.academicleveling.data.ApiRepository.resetPassword(
+                            request = request,
+                            onSuccess = {
+                                isLoading = false
+                                successMessage = "$it. Redirecting to login..."
+                                // Delay slightly then redirect
+                            },
+                            onError = {
+                                isLoading = false
+                                errorMessage = it
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !isLoading && successMessage == null,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple)
+                ) {
+                    if (isLoading) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    else Text("Reset Password", fontWeight = FontWeight.Bold)
+                }
+
+                if (successMessage != null) {
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(3000)
+                        onSuccess()
+                    }
                 }
             }
         }

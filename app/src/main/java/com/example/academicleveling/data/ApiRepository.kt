@@ -24,13 +24,19 @@ interface AcademicApi {
     @POST("change-password")
     fun changePassword(@Body request: ChangePasswordRequest): Call<ChangePasswordResponse>
 
+    @POST("forgot-password")
+    fun forgotPassword(@Body request: ForgotPasswordRequest): Call<ForgotPasswordResponse>
+
+    @POST("reset-password")
+    fun resetPassword(@Body request: ResetPasswordRequest): Call<ResetPasswordResponse>
+
     @GET("user")
     fun getUser(): Call<UserResponse>
 }
 
 object ApiRepository {
 
-    private const val BASE_URL = "https://academic-leveling-api.vercel.app/api/" // Replace with your actual API URL
+    private const val BASE_URL = "https://academic-leveling-api.onrender.com/api/" // Replace with your actual API URL
 
     private val api: AcademicApi
     private val gson = com.google.gson.Gson()
@@ -258,6 +264,60 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<ChangePasswordResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun forgotPassword(
+        email: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val request = ForgotPasswordRequest(email)
+        api.forgotPassword(request).enqueue(object : Callback<ForgotPasswordResponse> {
+            override fun onResponse(call: Call<ForgotPasswordResponse>, response: Response<ForgotPasswordResponse>) {
+                if (response.isSuccessful) {
+                    onSuccess(response.body()?.message ?: "Reset link sent")
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+            override fun onFailure(call: Call<ForgotPasswordResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun resetPassword(
+        request: ResetPasswordRequest,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.resetPassword(request).enqueue(object : Callback<ResetPasswordResponse> {
+            override fun onResponse(call: Call<ResetPasswordResponse>, response: Response<ResetPasswordResponse>) {
+                if (response.isSuccessful) {
+                    onSuccess(response.body()?.message ?: "Password reset successful")
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        val details = apiError.errors?.values?.flatten()?.joinToString("\n")
+                        if (!details.isNullOrBlank()) details else apiError.message
+                    } catch (e: Exception) {
+                        "Reset failed: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+            override fun onFailure(call: Call<ResetPasswordResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

@@ -35,7 +35,7 @@ import com.example.academicleveling.ui.theme.*
 import androidx.compose.ui.res.vectorResource
 
 private enum class Screen {
-    LOGIN, SIGNUP, QUESTS, BAZAAR, DUNGEON, TIMER, PROFILE
+    LOGIN, SIGNUP, QUESTS, BAZAAR, DUNGEON, TIMER, PROFILE, RESET_PASSWORD
 }
 
 private val MAIN_SCREENS = setOf(
@@ -47,18 +47,35 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         AppState.init(this)
+
+        val data: android.net.Uri? = intent?.data
+        var token: String? = null
+        var email: String? = null
+
+        if (data != null && data.scheme == "academicleveling" && data.host == "reset-password") {
+            token = data.getQueryParameter("token")
+            email = data.getQueryParameter("email")
+        }
+
         setContent {
             AcademicLevelingTheme {
-                AcademicLevelingApp()
+                AcademicLevelingApp(deepLinkToken = token, deepLinkEmail = email)
             }
         }
     }
 }
 
 @Composable
-private fun AcademicLevelingApp() {
+private fun AcademicLevelingApp(
+    deepLinkToken: String? = null,
+    deepLinkEmail: String? = null
+) {
     var currentScreen by remember {
-        mutableStateOf(if (AppState.loggedIn) Screen.QUESTS else Screen.LOGIN)
+        mutableStateOf(
+            if (deepLinkToken != null && deepLinkEmail != null) Screen.RESET_PASSWORD
+            else if (AppState.loggedIn) Screen.QUESTS
+            else Screen.LOGIN
+        )
     }
     var dungeonStartTarget by remember { mutableStateOf(DungeonStartTarget.HUB) }
 
@@ -119,6 +136,11 @@ private fun AcademicLevelingApp() {
             Screen.SIGNUP -> SignupScreen(
                 onSignup = { currentScreen = Screen.QUESTS },
                 onLogin  = { currentScreen = Screen.LOGIN }
+            )
+            Screen.RESET_PASSWORD -> com.example.academicleveling.ui.auth.ResetPasswordScreen(
+                token = deepLinkToken ?: "",
+                email = deepLinkEmail ?: "",
+                onSuccess = { currentScreen = Screen.LOGIN }
             )
             else -> LoginScreen(
                 onLogin  = { currentScreen = Screen.QUESTS },

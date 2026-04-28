@@ -46,6 +46,25 @@ data class ChangePasswordResponse(
     val message: String
 )
 
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class ForgotPasswordResponse(
+    val message: String
+)
+
+data class ResetPasswordRequest(
+    val email: String,
+    val password:  String,
+    @SerializedName("password_confirmation") val passwordConfirmation: String,
+    val token: String
+)
+
+data class ResetPasswordResponse(
+    val message: String
+)
+
 data class RegisterRequest(
     val username: String,
     val email: String,
