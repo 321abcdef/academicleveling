@@ -13,6 +13,9 @@ import retrofit2.http.POST
 interface AcademicApi {
     @POST("login")
     fun login(@Body request: LoginRequest): Call<LoginResponse>
+
+    @POST("logout")
+    fun logout(): Call<LogoutResponse>
 }
 
 object ApiRepository {
@@ -92,9 +95,18 @@ object ApiRepository {
         // TODO: Implement registration API call
     }
 
-    fun logout() {
-        authToken = null
-        android.util.Log.d("ApiRepository", "[STUB] logout()")
+    fun logout(onComplete: () -> Unit = {}) {
+        api.logout().enqueue(object : Callback<LogoutResponse> {
+            override fun onResponse(call: Call<LogoutResponse>, response: Response<LogoutResponse>) {
+                authToken = null
+                onComplete()
+            }
+
+            override fun onFailure(call: Call<LogoutResponse>, t: Throwable) {
+                authToken = null
+                onComplete()
+            }
+        })
     }
 
     // ══════════════════════════════════════════════════════════════════════

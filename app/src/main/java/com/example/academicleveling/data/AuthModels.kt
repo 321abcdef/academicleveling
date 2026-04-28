@@ -27,3 +27,7 @@ data class UserProgress(
     @SerializedName("exp_to_next_level") val expToNextLevel: Int,
     @SerializedName("progress_percent") val progressPercent: Double
 )
+
+data class LogoutResponse(
+    val message: String
+)
