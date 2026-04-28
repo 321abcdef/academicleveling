@@ -180,6 +180,8 @@ fun SignupScreen(onSignup: () -> Unit, onLogin: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     SpaceBackground {
         Column(
@@ -193,26 +195,65 @@ fun SignupScreen(onSignup: () -> Unit, onLogin: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("Username")
-                AuthTextField(value = username, onValueChange = { username = it }, placeholder = "Value")
+                AuthTextField(value = username, onValueChange = { username = it; errorMessage = null }, placeholder = "Value")
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Email")
-                AuthTextField(value = email, onValueChange = { email = it }, placeholder = "Value")
+                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Value")
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Password")
-                AuthTextField(value = password, onValueChange = { password = it }, placeholder = "Value", isPassword = true)
+                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Value", isPassword = true)
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Confirm Password")
-                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, placeholder = "Value", isPassword = true)
+                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        color = Color.Red,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 Spacer(Modifier.height(30.dp))
 
                 Button(
-                    onClick = onSignup,
+                    onClick = {
+                        if (username.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+                            errorMessage = "Please fill in all fields"
+                            return@Button
+                        }
+                        if (password != confirmPassword) {
+                            errorMessage = "Passwords do not match"
+                            return@Button
+                        }
+                        isLoading = true
+                        com.example.academicleveling.data.ApiRepository.register(
+                            username = username,
+                            email = email,
+                            password = password,
+                            passwordConfirmation = confirmPassword,
+                            onSuccess = { response ->
+                                isLoading = false
+                                com.example.academicleveling.data.AppState.registerWithApi(response)
+                                onSignup()
+                            },
+                            onError = { error ->
+                                isLoading = false
+                                errorMessage = error
+                            }
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(8.dp),
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple)
                 ) {
-                    Text("Signup", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Signup", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
 
                 Spacer(Modifier.height(40.dp))

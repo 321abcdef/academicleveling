@@ -109,7 +109,21 @@ object AppState {
         xp = response.data.progress.currentExp
         maxXP = response.data.progress.expToNextLevel
         coins = response.data.coins
-        totalXP = response.data.totalExp
+        totalXP = response.data.totalExp ?: 0
+        loggedIn = true
+        save()
+    }
+
+    fun registerWithApi(response: RegisterResponse) {
+        token = response.token
+        ApiRepository.setToken(token)
+        name = response.data.username
+        email = response.data.email
+        level = response.data.progress.level
+        xp = response.data.progress.currentExp
+        maxXP = response.data.progress.expToNextLevel
+        coins = response.data.coins
+        totalXP = response.data.totalExp ?: 0
         loggedIn = true
         save()
     }

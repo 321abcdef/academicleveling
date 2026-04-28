@@ -18,7 +18,7 @@ data class UserData(
     val email: String,
     val progress: UserProgress,
     val coins: Int,
-    @SerializedName("total_exp") val totalExp: Int
+    @SerializedName("total_exp") val totalExp: Int?
 )
 
 data class UserProgress(
@@ -30,4 +30,22 @@ data class UserProgress(
 
 data class LogoutResponse(
     val message: String
+)
+
+data class RegisterRequest(
+    val username: String,
+    val email: String,
+    val password: String,
+    @SerializedName("password_confirmation") val passwordConfirmation: String
+)
+
+data class RegisterResponse(
+    val message: String,
+    val token: String,
+    val data: UserData
+)
+
+data class ApiErrorResponse(
+    val message: String,
+    val errors: Map<String, List<String>>? = null
 )

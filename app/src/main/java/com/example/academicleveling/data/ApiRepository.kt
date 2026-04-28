@@ -14,6 +14,9 @@ interface AcademicApi {
     @POST("login")
     fun login(@Body request: LoginRequest): Call<LoginResponse>
 
+    @POST("register")
+    fun register(@Body request: RegisterRequest): Call<RegisterResponse>
+
     @POST("logout")
     fun logout(): Call<LogoutResponse>
 }
@@ -23,6 +26,7 @@ object ApiRepository {
     private const val BASE_URL = "https://academic-leveling-api.vercel.app/api/" // Replace with your actual API URL
 
     private val api: AcademicApi
+    private val gson = com.google.gson.Gson()
 
     init {
         val logging = HttpLoggingInterceptor().apply {
@@ -32,6 +36,7 @@ object ApiRepository {
             .addInterceptor(logging)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
+                request.addHeader("Accept", "application/json")
                 authToken?.let {
                     request.addHeader("Authorization", "Bearer $it")
                 }
@@ -76,7 +81,17 @@ object ApiRepository {
                         onError("Empty response body")
                     }
                 } else {
-                    onError("Login failed: ${response.code()}")
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        
+                        // Extract detailed validation errors if they exist
+                        val details = apiError.errors?.values?.flatten()?.joinToString("\n")
+                        if (!details.isNullOrBlank()) details else apiError.message
+                    } catch (e: Exception) {
+                        "Login failed: ${response.code()}"
+                    }
+                    onError(errorMsg)
                 }
             }
 
@@ -87,12 +102,40 @@ object ApiRepository {
     }
 
     fun register(
-        name: String, email: String, password: String, grade: String,
-        onSuccess: (token: String) -> Unit,
+        username: String, email: String, password: String, passwordConfirmation: String,
+        onSuccess: (RegisterResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        android.util.Log.d("ApiRepository", "[STUB] register($name, $email)")
-        // TODO: Implement registration API call
+        val request = RegisterRequest(username, email, password, passwordConfirmation)
+        api.register(request).enqueue(object : Callback<RegisterResponse> {
+            override fun onResponse(call: Call<RegisterResponse>, response: Response<RegisterResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        authToken = body.token
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        
+                        // Extract detailed validation errors if they exist
+                        val details = apiError.errors?.values?.flatten()?.joinToString("\n")
+                        if (!details.isNullOrBlank()) details else apiError.message
+                    } catch (e: Exception) {
+                        "Registration failed: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
     }
 
     fun logout(onComplete: () -> Unit = {}) {
