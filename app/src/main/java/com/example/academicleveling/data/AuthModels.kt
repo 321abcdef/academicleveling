@@ -36,6 +36,16 @@ data class UserResponse(
     val data: UserData
 )
 
+data class UpdateProfileRequest(
+    val username: String,
+    val email: String
+)
+
+data class UpdateProfileResponse(
+    val data: UserData,
+    val message: String
+)
+
 data class ChangePasswordRequest(
     @SerializedName("current_password") val currentPassword: String,
     @SerializedName("new_password") val newPassword: String,

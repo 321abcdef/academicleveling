@@ -42,7 +42,9 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
     var nameError       by remember { mutableStateOf("") }
     var emailError      by remember { mutableStateOf("") }
     var pwError         by remember { mutableStateOf("") }
-    var saveMsg         by remember { mutableStateOf("") }
+    
+    var profileMsg      by remember { mutableStateOf("") }
+    var passwordMsg     by remember { mutableStateOf("") }
     
     var isProfileLoading by remember { mutableStateOf(false) }
     var isPasswordLoading by remember { mutableStateOf(false) }
@@ -72,7 +74,7 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
             SettingsSection(title = "PROFILE INFORMATION", icon = Icons.Default.Person) {
                 OutlinedTextField(
                     value         = displayName,
-                    onValueChange = { displayName = it; nameError = ""; saveMsg = "" },
+                    onValueChange = { displayName = it; nameError = ""; profileMsg = "" },
                     modifier      = Modifier.fillMaxWidth(),
                     label         = { Text("Username", fontSize = 12.sp) },
                     isError       = nameError.isNotBlank(),
@@ -87,7 +89,7 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
 
                 OutlinedTextField(
                     value         = email,
-                    onValueChange = { email = it; emailError = ""; saveMsg = "" },
+                    onValueChange = { email = it; emailError = ""; profileMsg = "" },
                     modifier      = Modifier.fillMaxWidth(),
                     label         = { Text("Email", fontSize = 12.sp) },
                     isError       = emailError.isNotBlank(),
@@ -108,15 +110,39 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                         if (email.isBlank() || !email.contains("@")) { emailError = "Enter a valid email"; return@TealButton }
 
                         isProfileLoading = true
-                        saveMsg = ""
-                        // Placeholder for profile update API
-                        AppState.updateProfile(displayName.trim(), email.trim())
-                        isProfileLoading = false
-                        saveMsg = "Profile updated!"
+                        profileMsg = ""
+                        
+                        com.example.academicleveling.data.ApiRepository.updateProfile(
+                            name = displayName.trim(),
+                            email = email.trim(),
+                            onSuccess = { response ->
+                                isProfileLoading = false
+                                AppState.updateProfileWithApi(response)
+                                profileMsg = response.message
+                            },
+                            onError = { error ->
+                                isProfileLoading = false
+                                if (error.contains("email", ignoreCase = true)) {
+                                    emailError = error
+                                } else {
+                                    nameError = error
+                                }
+                            }
+                        )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isProfileLoading
                 )
+
+                if (profileMsg.isNotBlank()) {
+                    Text(
+                        profileMsg,
+                        color = SuccessGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
 
             // ── Password (Icon: Lock)
@@ -127,15 +153,15 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
             ) {
                 PwField("Current Password", currentPw, showCurrent,
                     onToggle = { showCurrent = !showCurrent },
-                    onChange = { currentPw = it; pwError = ""; saveMsg = "" })
+                    onChange = { currentPw = it; pwError = ""; passwordMsg = "" })
 
                 PwField("New Password", newPw, showNew,
                     onToggle = { showNew = !showNew },
-                    onChange = { newPw = it; pwError = ""; saveMsg = "" })
+                    onChange = { newPw = it; pwError = ""; passwordMsg = "" })
 
                 PwField("Confirm New Password", confirmPw, showConfirm,
                     onToggle = { showConfirm = !showConfirm },
-                    onChange = { confirmPw = it; pwError = ""; saveMsg = "" })
+                    onChange = { confirmPw = it; pwError = ""; passwordMsg = "" })
 
                 if (pwError.isNotBlank())
                     Text(pwError, color = DangerRed, fontSize = 11.sp)
@@ -150,7 +176,7 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                         if (newPw != confirmPw) { pwError = "Passwords do not match"; return@TealButton }
 
                         isPasswordLoading = true
-                        saveMsg = ""
+                        passwordMsg = ""
 
                         com.example.academicleveling.data.ApiRepository.changePassword(
                             current = currentPw,
@@ -159,7 +185,7 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                             onSuccess = {
                                 isPasswordLoading = false
                                 currentPw = ""; newPw = ""; confirmPw = ""
-                                saveMsg = "Password changed successfully!"
+                                passwordMsg = "Password changed successfully!"
                             },
                             onError = { error ->
                                 isPasswordLoading = false
@@ -171,14 +197,15 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                     enabled = !isPasswordLoading,
                     color = Color(0xFF6200EE) // Different color for distinction
                 )
-            }
 
-            // ── Save message
-            if (saveMsg.isNotBlank()) {
-                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                    .background(SuccessGreen.copy(.12f)).padding(10.dp),
-                    Alignment.Center) {
-                    Text(saveMsg, color = SuccessGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (passwordMsg.isNotBlank()) {
+                    Text(
+                        passwordMsg,
+                        color = SuccessGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
 

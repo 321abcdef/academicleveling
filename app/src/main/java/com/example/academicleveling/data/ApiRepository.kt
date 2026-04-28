@@ -10,6 +10,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 
 interface AcademicApi {
     @POST("login")
@@ -32,6 +33,9 @@ interface AcademicApi {
 
     @GET("user")
     fun getUser(): Call<UserResponse>
+
+    @PUT("user")
+    fun updateProfile(@Body request: UpdateProfileRequest): Call<UpdateProfileResponse>
 }
 
 object ApiRepository {
@@ -233,10 +237,37 @@ object ApiRepository {
 
     fun updateProfile(
         name: String, email: String,
-        onSuccess: () -> Unit,
+        onSuccess: (UpdateProfileResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        android.util.Log.d("ApiRepository", "[STUB] updateProfile($name, $email)")
+        val request = UpdateProfileRequest(name, email)
+        api.updateProfile(request).enqueue(object : Callback<UpdateProfileResponse> {
+            override fun onResponse(call: Call<UpdateProfileResponse>, response: Response<UpdateProfileResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        
+                        val details = apiError.errors?.values?.flatten()?.joinToString("\n")
+                        if (!details.isNullOrBlank()) details else apiError.message
+                    } catch (e: Exception) {
+                        "Failed to update profile: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<UpdateProfileResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
     }
 
     fun changePassword(

@@ -153,6 +153,17 @@ object AppState {
         save()
     }
 
+    fun updateProfileWithApi(response: UpdateProfileResponse) {
+        name = response.data.username
+        email = response.data.email
+        level = response.data.progress.level
+        xp = response.data.progress.currentExp
+        maxXP = response.data.progress.expToNextLevel
+        coins = response.data.coins
+        totalXP = response.data.totalExp ?: 0
+        save()
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     //  XP & LEVELS
     // ══════════════════════════════════════════════════════════════════════
