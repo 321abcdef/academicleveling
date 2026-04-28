@@ -23,6 +23,7 @@ object AppState {
     var email    by mutableStateOf("")
     var grade    by mutableStateOf<GradeLevel?>(null)
     var loggedIn by mutableStateOf(false)
+    var token    by mutableStateOf("")
 
     // ── Progression ───────────────────────────────────────────────────────
     var level   by mutableStateOf(1)
@@ -97,7 +98,21 @@ object AppState {
         loggedIn = true; save()
     }
 
-    fun logout() { loggedIn = false; name = ""; save() }
+    fun logout() { loggedIn = false; name = ""; token = ""; ApiRepository.logout(); save() }
+
+    fun loginWithApi(response: LoginResponse) {
+        token = response.token
+        ApiRepository.setToken(token)
+        name = response.data.username
+        email = response.data.email
+        level = response.data.progress.level
+        xp = response.data.progress.currentExp
+        maxXP = response.data.progress.expToNextLevel
+        coins = response.data.coins
+        totalXP = response.data.totalExp
+        loggedIn = true
+        save()
+    }
 
     fun updateProfile(newName: String, newEmail: String) {
         if (newName.isNotBlank()) name = newName
@@ -285,6 +300,7 @@ object AppState {
         if (!::prefs.isInitialized) return
         prefs.edit().apply {
             putString("name",  name);  putString("email", email)
+            putString("token", token)
             putString("grade", grade?.name); putBoolean("loggedIn", loggedIn)
             putInt("level", level); putInt("xp", xp); putInt("totalXP", totalXP)
             putInt("streak", streak); putInt("totalMins", totalMins)
@@ -306,6 +322,8 @@ object AppState {
         if (!::prefs.isInitialized) return
         name     = prefs.getString("name",  "") ?: ""
         email    = prefs.getString("email", "") ?: ""
+        token    = prefs.getString("token", "") ?: ""
+        if (token.isNotEmpty()) ApiRepository.setToken(token)
         grade    = prefs.getString("grade", null)
             ?.let { try { GradeLevel.valueOf(it) } catch (_: Exception) { null } }
         loggedIn = prefs.getBoolean("loggedIn", false)

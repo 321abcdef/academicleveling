@@ -84,6 +84,8 @@ fun SpaceBackground(content: @Composable () -> Unit) {
 fun LoginScreen(onLogin: () -> Unit, onSignup: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     SpaceBackground {
         Column(
@@ -97,22 +99,55 @@ fun LoginScreen(onLogin: () -> Unit, onSignup: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("Email")
-                AuthTextField(value = email, onValueChange = { email = it }, placeholder = "Value")
+                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Value")
 
                 Spacer(Modifier.height(16.dp))
 
                 AuthLabel("Password")
-                AuthTextField(value = password, onValueChange = { password = it }, placeholder = "Value", isPassword = true)
+                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        color = Color.Red,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 Spacer(Modifier.height(30.dp))
 
                 Button(
-                    onClick = onLogin,
+                    onClick = {
+                        if (email.isBlank() || password.isBlank()) {
+                            errorMessage = "Please fill in all fields"
+                            return@Button
+                        }
+                        isLoading = true
+                        com.example.academicleveling.data.ApiRepository.login(
+                            email = email,
+                            password = password,
+                            onSuccess = { response ->
+                                isLoading = false
+                                com.example.academicleveling.data.AppState.loginWithApi(response)
+                                onLogin()
+                            },
+                            onError = { error ->
+                                isLoading = false
+                                errorMessage = error
+                            }
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(8.dp),
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple)
                 ) {
-                    Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
 
                 Text(

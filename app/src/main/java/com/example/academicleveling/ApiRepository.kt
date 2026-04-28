@@ -1,12 +1,56 @@
 package com.example.academicleveling.data
 
-@Suppress("UNUSED_PARAMETER", "unused")
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AcademicApi {
+    @POST("login")
+    fun login(@Body request: LoginRequest): Call<LoginResponse>
+}
+
 object ApiRepository {
 
-    private const val BASE_URL = "https://your-laravel-api.com/api"
+    private const val BASE_URL = "https://academic-leveling-api.vercel.app/api/" // Replace with your actual API URL
+
+    private val api: AcademicApi
+
+    init {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                authToken?.let {
+                    request.addHeader("Authorization", "Bearer $it")
+                }
+                chain.proceed(request.build())
+            }
+            .build()
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(client)
+            .build()
+
+        api = retrofit.create(AcademicApi::class.java)
+    }
 
     var authToken: String? = null
         private set
+
+    fun setToken(token: String) {
+        authToken = token
+    }
 
     // ══════════════════════════════════════════════════════════════════════
     //  AUTH
@@ -14,10 +58,29 @@ object ApiRepository {
 
     fun login(
         email: String, password: String,
-        onSuccess: (token: String) -> Unit,
+        onSuccess: (LoginResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        android.util.Log.d("ApiRepository", "[STUB] login($email)")
+        val request = LoginRequest(email, password)
+        api.login(request).enqueue(object : Callback<LoginResponse> {
+            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        authToken = body.token
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    onError("Login failed: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
     }
 
     fun register(
@@ -26,6 +89,7 @@ object ApiRepository {
         onError: (String) -> Unit
     ) {
         android.util.Log.d("ApiRepository", "[STUB] register($name, $email)")
+        // TODO: Implement registration API call
     }
 
     fun logout() {
