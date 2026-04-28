@@ -42,7 +42,12 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
     var nameError       by remember { mutableStateOf("") }
     var emailError      by remember { mutableStateOf("") }
     var pwError         by remember { mutableStateOf("") }
-    var saveMsg         by remember { mutableStateOf("") }
+    
+    var profileMsg      by remember { mutableStateOf("") }
+    var passwordMsg     by remember { mutableStateOf("") }
+    
+    var isProfileLoading by remember { mutableStateOf(false) }
+    var isPasswordLoading by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
         SubPageBar("ACCOUNT SETTINGS", onBack)
@@ -66,10 +71,10 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
         ) {
 
             // ── Display Name (Icon: Person)
-            SettingsSection(title = "DISPLAY NAME", icon = Icons.Default.Person) {
+            SettingsSection(title = "PROFILE INFORMATION", icon = Icons.Default.Person) {
                 OutlinedTextField(
                     value         = displayName,
-                    onValueChange = { displayName = it; nameError = ""; saveMsg = "" },
+                    onValueChange = { displayName = it; nameError = ""; profileMsg = "" },
                     modifier      = Modifier.fillMaxWidth(),
                     label         = { Text("Username", fontSize = 12.sp) },
                     isError       = nameError.isNotBlank(),
@@ -79,13 +84,12 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                 )
                 if (nameError.isNotBlank())
                     Text(nameError, color = DangerRed, fontSize = 11.sp)
-            }
 
-            // ── Email (Icon: Email)
-            SettingsSection(title = "EMAIL ADDRESS", icon = Icons.Filled.Email) {
+                Spacer(Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value         = email,
-                    onValueChange = { email = it; emailError = ""; saveMsg = "" },
+                    onValueChange = { email = it; emailError = ""; profileMsg = "" },
                     modifier      = Modifier.fillMaxWidth(),
                     label         = { Text("Email", fontSize = 12.sp) },
                     isError       = emailError.isNotBlank(),
@@ -96,56 +100,114 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                 )
                 if (emailError.isNotBlank())
                     Text(emailError, color = DangerRed, fontSize = 11.sp)
+
+                Spacer(Modifier.height(16.dp))
+
+                TealButton(
+                    label = if (isProfileLoading) "UPDATING..." else "UPDATE PROFILE",
+                    onClick = {
+                        if (displayName.isBlank()) { nameError = "Name cannot be empty"; return@TealButton }
+                        if (email.isBlank() || !email.contains("@")) { emailError = "Enter a valid email"; return@TealButton }
+
+                        isProfileLoading = true
+                        profileMsg = ""
+                        
+                        com.example.academicleveling.data.ApiRepository.updateProfile(
+                            name = displayName.trim(),
+                            email = email.trim(),
+                            onSuccess = { response ->
+                                isProfileLoading = false
+                                AppState.updateProfileWithApi(response)
+                                profileMsg = response.message
+                            },
+                            onError = { error ->
+                                isProfileLoading = false
+                                if (error.contains("email", ignoreCase = true)) {
+                                    emailError = error
+                                } else {
+                                    nameError = error
+                                }
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProfileLoading
+                )
+
+                if (profileMsg.isNotBlank()) {
+                    Text(
+                        profileMsg,
+                        color = SuccessGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
 
             // ── Password (Icon: Lock)
             SettingsSection(
                 title = "CHANGE PASSWORD",
                 icon = Icons.Default.Lock,
-                subtitle = "Leave blank to keep current password"
+                subtitle = "Security updates"
             ) {
                 PwField("Current Password", currentPw, showCurrent,
                     onToggle = { showCurrent = !showCurrent },
-                    onChange = { currentPw = it; pwError = ""; saveMsg = "" })
+                    onChange = { currentPw = it; pwError = ""; passwordMsg = "" })
 
                 PwField("New Password", newPw, showNew,
                     onToggle = { showNew = !showNew },
-                    onChange = { newPw = it; pwError = ""; saveMsg = "" })
+                    onChange = { newPw = it; pwError = ""; passwordMsg = "" })
 
                 PwField("Confirm New Password", confirmPw, showConfirm,
                     onToggle = { showConfirm = !showConfirm },
-                    onChange = { confirmPw = it; pwError = ""; saveMsg = "" })
+                    onChange = { confirmPw = it; pwError = ""; passwordMsg = "" })
 
                 if (pwError.isNotBlank())
                     Text(pwError, color = DangerRed, fontSize = 11.sp)
+
+                Spacer(Modifier.height(16.dp))
+
+                TealButton(
+                    label = if (isPasswordLoading) "CHANGING..." else "CHANGE PASSWORD",
+                    onClick = {
+                        if (currentPw.isBlank()) { pwError = "Current password is required"; return@TealButton }
+                        if (newPw.length < 6) { pwError = "Password must be at least 6 characters"; return@TealButton }
+                        if (newPw != confirmPw) { pwError = "Passwords do not match"; return@TealButton }
+
+                        isPasswordLoading = true
+                        passwordMsg = ""
+
+                        com.example.academicleveling.data.ApiRepository.changePassword(
+                            current = currentPw,
+                            newPw = newPw,
+                            confirmPw = confirmPw,
+                            onSuccess = {
+                                isPasswordLoading = false
+                                currentPw = ""; newPw = ""; confirmPw = ""
+                                passwordMsg = "Password changed successfully!"
+                            },
+                            onError = { error ->
+                                isPasswordLoading = false
+                                pwError = error
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isPasswordLoading,
+                    color = Color(0xFF6200EE) // Different color for distinction
+                )
+
+                if (passwordMsg.isNotBlank()) {
+                    Text(
+                        passwordMsg,
+                        color = SuccessGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
-
-            // ── Save message
-            if (saveMsg.isNotBlank()) {
-                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                    .background(SuccessGreen.copy(.12f)).padding(10.dp),
-                    Alignment.Center) {
-                    Text(saveMsg, color = SuccessGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            TealButton("SAVE CHANGES", onClick = {
-                var ok = true
-                if (displayName.isBlank()) { nameError = "Name cannot be empty"; ok = false }
-                if (email.isBlank() || !email.contains("@")) {
-                    emailError = "Enter a valid email"; ok = false
-                }
-                if (newPw.isNotBlank()) {
-                    if (newPw.length < 6) { pwError = "Password must be at least 6 characters"; ok = false }
-                    else if (newPw != confirmPw) { pwError = "Passwords do not match"; ok = false }
-                }
-                if (ok) {
-                    AppState.updateProfile(displayName.trim(), email.trim())
-                    currentPw = ""; newPw = ""; confirmPw = ""
-                    saveMsg = "✅ Changes saved!"
-
-                }
-            }, modifier = Modifier.fillMaxWidth())
 
             // ── Account info (read-only)
             Card(
