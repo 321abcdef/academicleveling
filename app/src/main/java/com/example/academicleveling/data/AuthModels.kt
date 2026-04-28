@@ -32,6 +32,10 @@ data class LogoutResponse(
     val message: String
 )
 
+data class UserResponse(
+    val data: UserData
+)
+
 data class ChangePasswordRequest(
     @SerializedName("current_password") val currentPassword: String,
     @SerializedName("new_password") val newPassword: String,

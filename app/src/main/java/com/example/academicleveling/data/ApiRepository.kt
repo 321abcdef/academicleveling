@@ -8,6 +8,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface AcademicApi {
@@ -22,6 +23,9 @@ interface AcademicApi {
 
     @POST("change-password")
     fun changePassword(@Body request: ChangePasswordRequest): Call<ChangePasswordResponse>
+
+    @GET("user")
+    fun getUser(): Call<UserResponse>
 }
 
 object ApiRepository {
@@ -182,6 +186,37 @@ object ApiRepository {
     // ══════════════════════════════════════════════════════════════════════
     //  USER PROFILE
     // ══════════════════════════════════════════════════════════════════════
+
+    fun getUserInfo(
+        onSuccess: (UserResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getUser().enqueue(object : Callback<UserResponse> {
+            override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch user: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
 
     fun getProfile(
         onSuccess: (Map<String, Any>) -> Unit,

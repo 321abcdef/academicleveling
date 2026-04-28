@@ -16,6 +16,7 @@ object AppState {
     fun init(context: Context) {
         prefs = context.getSharedPreferences("academic_leveling_v7", Context.MODE_PRIVATE)
         load()
+        if (loggedIn) refreshUserData()
     }
 
     // ── Auth ──────────────────────────────────────────────────────────────
@@ -126,6 +127,24 @@ object AppState {
         totalXP = response.data.totalExp ?: 0
         loggedIn = true
         save()
+    }
+
+    fun refreshUserData(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getUserInfo(
+            onSuccess = { response ->
+                name = response.data.username
+                email = response.data.email
+                level = response.data.progress.level
+                xp = response.data.progress.currentExp
+                maxXP = response.data.progress.expToNextLevel
+                coins = response.data.coins
+                totalXP = response.data.totalExp ?: 0
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
     }
 
     fun updateProfile(newName: String, newEmail: String) {
@@ -337,7 +356,11 @@ object AppState {
         name     = prefs.getString("name",  "") ?: ""
         email    = prefs.getString("email", "") ?: ""
         token    = prefs.getString("token", "") ?: ""
-        if (token.isNotEmpty()) ApiRepository.setToken(token)
+        if (token.isNotEmpty()) {
+            ApiRepository.setToken(token)
+            // Optional: Auto-refresh data on load
+            // refreshUserData() 
+        }
         grade    = prefs.getString("grade", null)
             ?.let { try { GradeLevel.valueOf(it) } catch (_: Exception) { null } }
         loggedIn = prefs.getBoolean("loggedIn", false)
