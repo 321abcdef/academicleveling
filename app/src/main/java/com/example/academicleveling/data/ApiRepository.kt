@@ -19,6 +19,9 @@ interface AcademicApi {
 
     @POST("logout")
     fun logout(): Call<LogoutResponse>
+
+    @POST("change-password")
+    fun changePassword(@Body request: ChangePasswordRequest): Call<ChangePasswordResponse>
 }
 
 object ApiRepository {
@@ -196,11 +199,33 @@ object ApiRepository {
     }
 
     fun changePassword(
-        current: String, newPw: String,
+        current: String, newPw: String, confirmPw: String,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        android.util.Log.d("ApiRepository", "[STUB] changePassword()")
+        val request = ChangePasswordRequest(current, newPw, confirmPw)
+        api.changePassword(request).enqueue(object : Callback<ChangePasswordResponse> {
+            override fun onResponse(call: Call<ChangePasswordResponse>, response: Response<ChangePasswordResponse>) {
+                if (response.isSuccessful) {
+                    onSuccess()
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        
+                        val details = apiError.errors?.values?.flatten()?.joinToString("\n")
+                        if (!details.isNullOrBlank()) details else apiError.message
+                    } catch (e: Exception) {
+                        "Failed to change password: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<ChangePasswordResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
     }
 
     // ══════════════════════════════════════════════════════════════════════
