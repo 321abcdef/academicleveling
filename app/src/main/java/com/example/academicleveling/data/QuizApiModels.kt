@@ -155,6 +155,37 @@ data class AttemptDetailsResponse(
     val data: JsonObject
 )
 
+data class StudySessionsResponse(
+    val data: List<StudySessionApiData>
+)
+
+data class StudySessionApiData(
+    val id: Int,
+    @SerializedName("session_at") val sessionAt: String,
+    val duration: Int,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String
+)
+
+data class CreateStudySessionRequest(
+    val duration: Int,
+    @SerializedName("session_at") val sessionAt: String
+)
+
+data class CreateStudySessionResponse(
+    val data: CreateStudySessionData,
+    val message: String
+)
+
+data class CreateStudySessionData(
+    val id: Int,
+    @SerializedName("session_at") val sessionAt: String,
+    val duration: Int,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String,
+    val rewards: AttemptRewards
+)
+
 // ══════════════════════════════════════════════════════════════════════
 //  CREATE
 // ══════════════════════════════════════════════════════════════════════

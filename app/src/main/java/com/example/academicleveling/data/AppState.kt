@@ -315,6 +315,37 @@ object AppState {
         completeQuest(1); completeQuest(4); checkAchievements(); save()
     }
 
+    fun refreshStudySessions(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getStudySessions(
+            onSuccess = { sessions ->
+                sessionHistory = sessions
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
+    }
+
+    fun createStudySessionWithApi(
+        durationSeconds: Int,
+        sessionAt: String,
+        onComplete: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.createStudySession(
+            duration = durationSeconds,
+            sessionAt = sessionAt,
+            onSuccess = {
+                refreshStudySessions(onComplete)
+            },
+            onError = {
+                onError(it)
+            }
+        )
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     //  ACHIEVEMENTS
     // ══════════════════════════════════════════════════════════════════════

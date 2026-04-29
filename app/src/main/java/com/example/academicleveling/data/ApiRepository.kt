@@ -49,6 +49,12 @@ interface AcademicApi {
     @GET("attempts/{id}")
     fun getAttemptDetails(@Path("id") id: Int): Call<AttemptDetailsResponse>
 
+    @GET("study-sessions")
+    fun getStudySessions(): Call<StudySessionsResponse>
+
+    @POST("study-sessions")
+    fun createStudySession(@Body request: CreateStudySessionRequest): Call<CreateStudySessionResponse>
+
     @GET("quizzes/mine")
     fun getMyQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
 
@@ -306,6 +312,77 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<AttemptDetailsResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getStudySessions(
+        onSuccess: (List<SessionEntry>) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getStudySessions().enqueue(object : Callback<StudySessionsResponse> {
+            override fun onResponse(call: Call<StudySessionsResponse>, response: Response<StudySessionsResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body.data.map { it.toSessionEntry() })
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch study sessions: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<StudySessionsResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun createStudySession(
+        duration: Int,
+        sessionAt: String,
+        onSuccess: (CreateStudySessionResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val request = CreateStudySessionRequest(
+            duration = duration,
+            sessionAt = sessionAt
+        )
+        api.createStudySession(request).enqueue(object : Callback<CreateStudySessionResponse> {
+            override fun onResponse(
+                call: Call<CreateStudySessionResponse>,
+                response: Response<CreateStudySessionResponse>
+            ) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to create study session: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<CreateStudySessionResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
@@ -883,6 +960,16 @@ object ApiRepository {
             score = score,
             total = score,
             answers = emptyList()
+        )
+    }
+
+    private fun StudySessionApiData.toSessionEntry(): SessionEntry {
+        val minutes = (duration / 60).coerceAtLeast(0)
+        val date = sessionAt.substringBefore("T").ifBlank { sessionAt }
+        return SessionEntry(
+            date = date,
+            minutes = minutes,
+            xpGained = minutes * 2
         )
     }
 }
