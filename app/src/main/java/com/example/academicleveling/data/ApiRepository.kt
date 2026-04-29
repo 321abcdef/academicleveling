@@ -47,6 +47,9 @@ interface AcademicApi {
 
     @GET("quizzes/{id}")
     fun getQuizDetails(@Path("id") id: Int): Call<QuizDetailsResponse>
+
+    @PUT("quizzes/{id}")
+    fun updateQuiz(@Path("id") id: Int, @Body request: CreateQuizRequest): Call<QuizApiData>
 }
 
 object ApiRepository {
@@ -276,6 +279,40 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<QuizDetailsResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun updateQuiz(
+        id: Int,
+        request: CreateQuizRequest,
+        onSuccess: (QuizApiData) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.updateQuiz(id, request).enqueue(object : Callback<QuizApiData> {
+            override fun onResponse(call: Call<QuizApiData>, response: Response<QuizApiData>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        val details = apiError.errors?.values?.flatten()?.joinToString("\n")
+                        if (!details.isNullOrBlank()) details else apiError.message
+                    } catch (e: Exception) {
+                        "Failed to update quiz: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<QuizApiData>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
