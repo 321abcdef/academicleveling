@@ -259,6 +259,18 @@ object AppState {
         save()
     }
 
+    fun refreshMyQuizzes(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getMyQuizzes(
+            onSuccess = { quizzes ->
+                myQuizzes = quizzes
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
+    }
+
     fun editQuiz(q: Quiz)   { myQuizzes = myQuizzes.map { if (it.id == q.id) q else it }; save() }
     fun deleteQuiz(id: Int) { myQuizzes = myQuizzes.filter { it.id != id }; save() }
 

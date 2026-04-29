@@ -2,6 +2,7 @@ package com.example.academicleveling.ui.dungeon
 
 import androidx.compose.runtime.*
 import com.example.academicleveling.data.AppState
+import com.example.academicleveling.data.ApiRepository
 import com.example.academicleveling.data.Quiz
 import com.example.academicleveling.ui.quiz_history.QuizHistoryScreen
 import com.example.academicleveling.ui.shared.SoundManager
@@ -33,6 +34,12 @@ fun DungeonScreen(
         }
     }
 
+    LaunchedEffect(nav) {
+        if (nav == DNav.MY) {
+            AppState.refreshMyQuizzes()
+        }
+    }
+
     when (nav) {
         DNav.HUB -> DungeonHub(
             onMy        = { SoundManager.navigate(); nav = DNav.MY },
@@ -52,7 +59,13 @@ fun DungeonScreen(
                 nav = DNav.PLAY
             },
             onEdit   = { q -> SoundManager.navigate(); editingQuiz = q; nav = DNav.EDIT },
-            onDelete = { q -> AppState.deleteQuiz(q.id) }
+            onDelete = { q ->
+                ApiRepository.deleteQuiz(
+                    id = q.id,
+                    onSuccess = { AppState.deleteQuiz(q.id) },
+                    onError = { err -> android.util.Log.e("DungeonScreen", "Delete quiz failed: $err") }
+                )
+            }
         )
 
         DNav.COMMUNITY -> CommunityScreen(

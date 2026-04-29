@@ -8,6 +8,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -42,6 +43,9 @@ interface AcademicApi {
     @GET("quizzes")
     fun getQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
 
+    @GET("quizzes/mine")
+    fun getMyQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
+
     @POST("quizzes")
     fun createQuiz(@Body request: CreateQuizRequest): Call<CreateQuizResponse>
 
@@ -50,6 +54,9 @@ interface AcademicApi {
 
     @PUT("quizzes/{id}")
     fun updateQuiz(@Path("id") id: Int, @Body request: CreateQuizRequest): Call<QuizApiData>
+
+    @DELETE("quizzes/{id}")
+    fun deleteQuiz(@Path("id") id: Int): Call<Void>
 }
 
 object ApiRepository {
@@ -219,6 +226,38 @@ object ApiRepository {
         })
     }
 
+    fun getMyQuizzes(
+        page: Int? = null,
+        onSuccess: (List<Quiz>) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getMyQuizzes(page).enqueue(object : Callback<QuizListResponse> {
+            override fun onResponse(call: Call<QuizListResponse>, response: Response<QuizListResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body.data.map { it.toLocalQuiz() })
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch my quizzes: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
     fun createQuiz(
         request: CreateQuizRequest,
         onSuccess: (CreateQuizResponse) -> Unit,
@@ -313,6 +352,33 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<QuizApiData>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun deleteQuiz(
+        id: Int,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.deleteQuiz(id).enqueue(object : Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                if (response.isSuccessful) {
+                    onSuccess()
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to delete quiz: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
@@ -501,5 +567,83 @@ object ApiRepository {
         onError: (String) -> Unit
     ) {
         android.util.Log.d("ApiRepository", "[STUB] claimAchievement(id=$achievementId)")
+    }
+
+    private fun QuizApiData.toLocalQuiz(): Quiz {
+        return Quiz(
+            id = id,
+            title = title,
+            creator = user.name,
+            creatorName = user.name,
+            questions = questions?.map { it.toLocalQuestion() } ?: emptyList(),
+            exp = (questions?.size ?: questionsCount) * 20,
+            quizType = type.toQuizType(),
+            timerMode = timerMode.toTimerMode(),
+            timerSeconds = 0,
+            subject = subject,
+            gradeLevel = gradeLevel,
+            difficulty = difficulty.toDifficulty(),
+            code = quizCode,
+            dateCreated = createdAt,
+            shuffleQuestions = isQuestionShuffled,
+            shuffleOptions = isChoicesShuffled
+        )
+    }
+
+    private fun QuestionApiData.toLocalQuestion(): QuizQuestion {
+        return when (type.lowercase()) {
+            "true_false", "truefalse", "true-false" -> {
+                val answer = correctAnswer?.trim()?.lowercase()
+                QuizQuestion(
+                    q = questionText,
+                    opts = listOf("True", "False"),
+                    correct = if (answer == "false") 1 else 0,
+                    exp = "",
+                    type = QuizType.TRUE_FALSE,
+                    identAnswer = ""
+                )
+            }
+            "identification", "ident" -> {
+                QuizQuestion(
+                    q = questionText,
+                    opts = emptyList(),
+                    correct = 0,
+                    exp = "",
+                    type = QuizType.IDENTIFICATION,
+                    identAnswer = correctAnswer ?: ""
+                )
+            }
+            else -> {
+                val localChoices = choices.map { it.choiceText }
+                val correctIndex = choices.indexOfFirst { it.isCorrect }.coerceAtLeast(0)
+                QuizQuestion(
+                    q = questionText,
+                    opts = localChoices,
+                    correct = correctIndex,
+                    exp = "",
+                    type = QuizType.MULTIPLE_CHOICE,
+                    identAnswer = ""
+                )
+            }
+        }
+    }
+
+    private fun String.toDifficulty(): Difficulty = when (lowercase()) {
+        "easy" -> Difficulty.EASY
+        "hard" -> Difficulty.HARD
+        else -> Difficulty.MEDIUM
+    }
+
+    private fun String.toQuizType(): QuizType = when (lowercase()) {
+        "multiple_choice", "multiple-choice", "mcq" -> QuizType.MULTIPLE_CHOICE
+        "true_false", "truefalse", "true-false" -> QuizType.TRUE_FALSE
+        "identification", "ident" -> QuizType.IDENTIFICATION
+        else -> QuizType.MIX
+    }
+
+    private fun String.toTimerMode(): QuizTimerMode = when (lowercase()) {
+        "quiz", "whole_quiz", "whole-quiz" -> QuizTimerMode.WHOLE_QUIZ
+        "question", "per_question", "per-question" -> QuizTimerMode.PER_QUESTION
+        else -> QuizTimerMode.NONE
     }
 }
