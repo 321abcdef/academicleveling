@@ -327,6 +327,37 @@ object AppState {
         )
     }
 
+    fun refreshQuests(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getQuests(
+            onSuccess = { daily, weekly ->
+                quests = daily
+                weeklyQuests = weekly
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
+    }
+
+    fun claimQuestRewardWithApi(
+        questId: Int,
+        onSuccess: (expGained: Int, coinsGained: Int) -> Unit = { _, _ -> },
+        onError: (String) -> Unit = {}
+    ) {
+        if (!loggedIn || token.isEmpty()) return
+        ApiRepository.claimQuestReward(
+            questId = questId,
+            onSuccess = { response ->
+                if (response.data.expGained > 0) addXP(response.data.expGained)
+                if (response.data.coinsGained > 0) addCoins(response.data.coinsGained)
+                refreshQuests()
+                onSuccess(response.data.expGained, response.data.coinsGained)
+            },
+            onError = onError
+        )
+    }
+
     fun createStudySessionWithApi(
         durationSeconds: Int,
         sessionAt: String,

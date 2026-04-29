@@ -186,6 +186,43 @@ data class CreateStudySessionData(
     val rewards: AttemptRewards
 )
 
+data class QuestsResponse(
+    val data: QuestsData
+)
+
+data class QuestsData(
+    val daily: List<QuestApiData>,
+    val weekly: List<QuestApiData>
+)
+
+data class QuestApiData(
+    val id: Int,
+    val title: String,
+    val description: String,
+    val type: String,
+    val progress: Double,
+    val target: Double,
+    @SerializedName("completed_at") val completedAt: String?,
+    val percentage: Double,
+    val rewards: QuestRewardsApiData
+)
+
+data class QuestRewardsApiData(
+    val exp: Int,
+    val coins: Int,
+    @SerializedName("claimed_at") val claimedAt: String?
+)
+
+data class ClaimQuestRewardResponse(
+    val message: String,
+    val data: ClaimQuestRewardData
+)
+
+data class ClaimQuestRewardData(
+    @SerializedName("exp_gained") val expGained: Int,
+    @SerializedName("coins_gained") val coinsGained: Int
+)
+
 // ══════════════════════════════════════════════════════════════════════
 //  CREATE
 // ══════════════════════════════════════════════════════════════════════

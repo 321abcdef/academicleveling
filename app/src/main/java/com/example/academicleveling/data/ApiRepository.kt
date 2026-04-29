@@ -52,6 +52,12 @@ interface AcademicApi {
     @GET("study-sessions")
     fun getStudySessions(): Call<StudySessionsResponse>
 
+    @GET("quests")
+    fun getQuests(): Call<QuestsResponse>
+
+    @POST("quests/{id}/claim")
+    fun claimQuestReward(@Path("id") id: Int): Call<ClaimQuestRewardResponse>
+
     @POST("study-sessions")
     fun createStudySession(@Body request: CreateStudySessionRequest): Call<CreateStudySessionResponse>
 
@@ -383,6 +389,75 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<CreateStudySessionResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getQuests(
+        onSuccess: (daily: List<Quest>, weekly: List<Quest>) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getQuests().enqueue(object : Callback<QuestsResponse> {
+            override fun onResponse(call: Call<QuestsResponse>, response: Response<QuestsResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(
+                            body.data.daily.map { it.toLocalQuest() },
+                            body.data.weekly.map { it.toLocalQuest() }
+                        )
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch quests: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<QuestsResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun claimQuestReward(
+        questId: Int,
+        onSuccess: (ClaimQuestRewardResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.claimQuestReward(questId).enqueue(object : Callback<ClaimQuestRewardResponse> {
+            override fun onResponse(
+                call: Call<ClaimQuestRewardResponse>,
+                response: Response<ClaimQuestRewardResponse>
+            ) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to claim quest reward: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<ClaimQuestRewardResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
@@ -970,6 +1045,15 @@ object ApiRepository {
             date = date,
             minutes = minutes,
             xpGained = minutes * 2
+        )
+    }
+
+    private fun QuestApiData.toLocalQuest(): Quest {
+        return Quest(
+            id = id,
+            title = title.uppercase(),
+            exp = rewards.exp,
+            done = completedAt != null || progress >= target
         )
     }
 }

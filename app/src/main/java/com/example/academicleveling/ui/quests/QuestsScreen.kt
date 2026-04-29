@@ -40,6 +40,10 @@ fun QuestsScreen(
     var dailyClaimMsg  by remember { mutableStateOf("") }
     var weeklyClaimMsg by remember { mutableStateOf("") }
 
+    LaunchedEffect(Unit) {
+        AppState.refreshQuests()
+    }
+
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
             TopBar()
