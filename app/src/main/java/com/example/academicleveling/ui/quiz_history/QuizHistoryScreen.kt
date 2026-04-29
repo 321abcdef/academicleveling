@@ -41,6 +41,9 @@ fun QuizHistoryScreen(
     var visibleCount    by remember { mutableStateOf(PAGE_SIZE) }
 
     val history = AppState.quizHistory
+    LaunchedEffect(Unit) {
+        AppState.refreshQuizHistory()
+    }
     LaunchedEffect(history.size) {
         visibleCount = PAGE_SIZE
         expanded     = null

@@ -292,6 +292,18 @@ object AppState {
         checkAchievements(); save()
     }
 
+    fun refreshQuizHistory(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getAttempts(
+            onSuccess = { attempts ->
+                quizHistory = attempts
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     //  STUDY SESSIONS
     // ══════════════════════════════════════════════════════════════════════

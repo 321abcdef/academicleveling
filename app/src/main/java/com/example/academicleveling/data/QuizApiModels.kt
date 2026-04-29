@@ -1,5 +1,6 @@
 package com.example.academicleveling.data
 
+import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 
 // ══════════════════════════════════════════════════════════════════════
@@ -117,6 +118,41 @@ data class SubmitAllAttemptData(
 data class AttemptRewards(
     val exp: Int,
     val coins: Int
+)
+
+data class AttemptListResponse(
+    val data: List<AttemptApiData>,
+    val links: PaginationLinks,
+    val meta: PaginationMeta
+)
+
+data class AttemptApiData(
+    val id: Int,
+    val score: Int,
+    @SerializedName("started_at") val startedAt: String?,
+    @SerializedName("completed_at") val completedAt: String?,
+    val quiz: AttemptQuizApiData
+)
+
+data class AttemptQuizApiData(
+    val id: Int,
+    @SerializedName("quiz_code") val quizCode: String,
+    val title: String,
+    val description: String?,
+    val subject: String,
+    @SerializedName("grade_level") val gradeLevel: String,
+    val type: String,
+    val difficulty: String,
+    @SerializedName("timer_mode") val timerMode: String,
+    @SerializedName("is_question_shuffled") val isQuestionShuffled: Boolean,
+    @SerializedName("is_choices_shuffled") val isChoicesShuffled: Boolean,
+    @SerializedName("is_public") val isPublic: Boolean,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String
+)
+
+data class AttemptDetailsResponse(
+    val data: JsonObject
 )
 
 // ══════════════════════════════════════════════════════════════════════

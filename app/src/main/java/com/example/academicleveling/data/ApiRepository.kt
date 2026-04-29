@@ -43,6 +43,12 @@ interface AcademicApi {
     @GET("quizzes")
     fun getQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
 
+    @GET("attempts")
+    fun getAttempts(@Query("page") page: Int? = null): Call<AttemptListResponse>
+
+    @GET("attempts/{id}")
+    fun getAttemptDetails(@Path("id") id: Int): Call<AttemptDetailsResponse>
+
     @GET("quizzes/mine")
     fun getMyQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
 
@@ -236,6 +242,70 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getAttempts(
+        page: Int? = null,
+        onSuccess: (List<QuizHistoryEntry>) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getAttempts(page).enqueue(object : Callback<AttemptListResponse> {
+            override fun onResponse(call: Call<AttemptListResponse>, response: Response<AttemptListResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body.data.map { it.toQuizHistoryEntry() })
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch attempts: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<AttemptListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getAttemptDetails(
+        attemptId: Int,
+        onSuccess: (AttemptDetailsResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getAttemptDetails(attemptId).enqueue(object : Callback<AttemptDetailsResponse> {
+            override fun onResponse(call: Call<AttemptDetailsResponse>, response: Response<AttemptDetailsResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        onSuccess(body)
+                    } else {
+                        onError("Empty response body")
+                    }
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch attempt details: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<AttemptDetailsResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
@@ -802,5 +872,17 @@ object ApiRepository {
         "quiz", "whole_quiz", "whole-quiz" -> QuizTimerMode.WHOLE_QUIZ
         "question", "per_question", "per-question" -> QuizTimerMode.PER_QUESTION
         else -> QuizTimerMode.NONE
+    }
+
+    private fun AttemptApiData.toQuizHistoryEntry(): QuizHistoryEntry {
+        return QuizHistoryEntry(
+            quizId = quiz.id,
+            quizTitle = quiz.title,
+            quizCode = quiz.quizCode,
+            date = completedAt ?: startedAt ?: "",
+            score = score,
+            total = score,
+            answers = emptyList()
+        )
     }
 }
