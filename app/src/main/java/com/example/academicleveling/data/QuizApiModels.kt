@@ -85,6 +85,40 @@ data class QuizDetailsResponse(
     val data: QuizApiData
 )
 
+data class StartQuizAttemptResponse(
+    val message: String,
+    @SerializedName("attempt_id") val attemptId: Int
+)
+
+data class SubmitAttemptAnswersRequest(
+    val answers: List<Map<String, Any?>>
+)
+
+data class SubmitAttemptAnswersResponse(
+    val message: String
+)
+
+data class SubmitAttemptResponse(
+    val message: String
+)
+
+data class SubmitAllAttemptResponse(
+    val message: String,
+    val data: SubmitAllAttemptData
+)
+
+data class SubmitAllAttemptData(
+    val score: Int,
+    @SerializedName("total_questions") val totalQuestions: Int,
+    @SerializedName("correct_answers") val correctAnswers: Int,
+    val rewards: AttemptRewards
+)
+
+data class AttemptRewards(
+    val exp: Int,
+    val coins: Int
+)
+
 // ══════════════════════════════════════════════════════════════════════
 //  CREATE
 // ══════════════════════════════════════════════════════════════════════

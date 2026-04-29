@@ -61,6 +61,21 @@ fun PlayQuizScreen(
     var eliminatedOptions by remember { mutableStateOf(setOf<Int>()) }
     var fiftyFiftyUsed    by remember { mutableStateOf(false) }
 
+    LaunchedEffect(quiz.id) {
+        ApiRepository.startQuizAttempt(
+            quizId = quiz.id,
+            onSuccess = { response ->
+                android.util.Log.d(
+                    "PlayQuizScreen",
+                    "Quiz attempt started: id=${response.attemptId}, message=${response.message}"
+                )
+            },
+            onError = { err ->
+                android.util.Log.e("PlayQuizScreen", "Failed to start quiz attempt: $err")
+            }
+        )
+    }
+
     fun correctTextFor(q: QuizQuestion): String = when (q.type) {
         QuizType.MULTIPLE_CHOICE -> q.opts.getOrElse(q.correct) { "" }
         QuizType.TRUE_FALSE      -> if (q.correct == 0) "True" else "False"
