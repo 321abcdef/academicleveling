@@ -16,7 +16,7 @@ object AppState {
     fun init(context: Context) {
         prefs = context.getSharedPreferences("academic_leveling_v7", Context.MODE_PRIVATE)
         load()
-        if (loggedIn) refreshUserData()
+        if (loggedIn) refreshAllData()
     }
 
     // ── Auth ──────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ object AppState {
     var rank    by mutableStateOf(Rank.E)
 
     // ── Economy ───────────────────────────────────────────────────────────
-    var coins              by mutableStateOf(15000)
+    var coins              by mutableStateOf(0)
     var timeWarpCount      by mutableStateOf(0)
     var secondChanceCount  by mutableStateOf(0)
     var hintCount          by mutableStateOf(0)
@@ -85,61 +85,106 @@ object AppState {
     )
 
     // ══════════════════════════════════════════════════════════════════════
-    //  AUTH
+    //  AUTH & SYNC
     // ══════════════════════════════════════════════════════════════════════
 
-    fun login(n: String, e: String, g: GradeLevel) {
-        name = n; email = e; grade = g; loggedIn = true; save()
+    fun logout() {
+        loggedIn = false
+        token = ""
+        ApiRepository.logout()
+        clearState()
+        save()
     }
 
-    fun quickLogin(n: String = "", e: String = "") {
-        if (n.isNotBlank()) name = n
-        if (name.isBlank()) name = "Player"
-        if (e.isNotBlank()) email = e
-        loggedIn = true; save()
+    private fun clearState() {
+        name = ""
+        email = ""
+        grade = null
+        level = 1
+        xp = 0
+        totalXP = 0
+        maxXP = xpForNext(1)
+        rank = Rank.E
+        coins = 0
+        timeWarpCount = 0
+        secondChanceCount = 0
+        hintCount = 0
+        streakBandaidCount = 0
+        streak = 0
+        totalMins = 0
+        quizzesCompleted = 0
+        streakAtRisk = false
+        showLevelUp = false
+        newLevelVal = 1
+        inventory = DEFAULT_INVENTORY
+        equipment = DEFAULT_EQUIPMENT
+        achievements = ALL_ACHIEVEMENTS.map { it.copy(unlocked = false, claimed = false) }
+        sessionHistory = emptyList()
+        quizHistory = emptyList()
+        myQuizzes = emptyList()
+        quests = listOf(
+            Quest(1, "STUDY FOR 30 MINUTES",     10),
+            Quest(2, "ANSWER A QUIZ",            15),
+            Quest(3, "COMPLETE 1 HOMEWORK TASK", 15),
+            Quest(4, "LOG A STUDY SESSION",      10)
+        )
+        weeklyQuests = listOf(
+            Quest(101, "20 MINUTES READING FOR 4 DAYS", 60),
+            Quest(102, "COMPLETE 5 QUIZZES",            100),
+            Quest(103, "COMPLETE 3 DAILY QUESTS",       200)
+        )
     }
-
-    fun logout() { loggedIn = false; name = ""; token = ""; ApiRepository.logout(); save() }
 
     fun loginWithApi(response: LoginResponse) {
         token = response.token
         ApiRepository.setToken(token)
-        name = response.data.username
-        email = response.data.email
-        level = response.data.progress.level
-        xp = response.data.progress.currentExp
-        maxXP = response.data.progress.expToNextLevel
-        coins = response.data.coins
-        totalXP = response.data.totalExp ?: 0
+        updateUserData(response.data)
         loggedIn = true
         save()
+        refreshAllData()
     }
 
     fun registerWithApi(response: RegisterResponse) {
         token = response.token
         ApiRepository.setToken(token)
-        name = response.data.username
-        email = response.data.email
-        level = response.data.progress.level
-        xp = response.data.progress.currentExp
-        maxXP = response.data.progress.expToNextLevel
-        coins = response.data.coins
-        totalXP = response.data.totalExp ?: 0
+        updateUserData(response.data)
         loggedIn = true
         save()
+        refreshAllData()
+    }
+
+    private fun updateUserData(data: UserData) {
+        name = data.username
+        email = data.email
+        level = data.progress.level
+        xp = data.progress.currentExp
+        maxXP = data.progress.expToNextLevel
+        coins = data.coins
+        totalXP = data.totalExp ?: 0
+        rank = getRank(level)
+    }
+
+    fun refreshAllData(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        refreshUserData {
+            refreshQuests {
+                refreshMyQuizzes {
+                    refreshQuizHistory {
+                        refreshStudySessions {
+                            checkAchievements()
+                            onComplete()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun refreshUserData(onComplete: () -> Unit = {}) {
         if (!loggedIn || token.isEmpty()) { onComplete(); return }
         ApiRepository.getUserInfo(
             onSuccess = { response ->
-                name = response.data.username
-                email = response.data.email
-                level = response.data.progress.level
-                xp = response.data.progress.currentExp
-                maxXP = response.data.progress.expToNextLevel
-                coins = response.data.coins
-                totalXP = response.data.totalExp ?: 0
+                updateUserData(response.data)
                 save()
                 onComplete()
             },
@@ -147,20 +192,8 @@ object AppState {
         )
     }
 
-    fun updateProfile(newName: String, newEmail: String) {
-        if (newName.isNotBlank()) name = newName
-        if (newEmail.isNotBlank()) email = newEmail
-        save()
-    }
-
     fun updateProfileWithApi(response: UpdateProfileResponse) {
-        name = response.data.username
-        email = response.data.email
-        level = response.data.progress.level
-        xp = response.data.progress.currentExp
-        maxXP = response.data.progress.expToNextLevel
-        coins = response.data.coins
-        totalXP = response.data.totalExp ?: 0
+        updateUserData(response.data)
         save()
     }
 
@@ -297,6 +330,7 @@ object AppState {
         ApiRepository.getAttempts(
             onSuccess = { attempts ->
                 quizHistory = attempts
+                quizzesCompleted = attempts.size
                 save()
                 onComplete()
             },
@@ -320,6 +354,7 @@ object AppState {
         ApiRepository.getStudySessions(
             onSuccess = { sessions ->
                 sessionHistory = sessions
+                totalMins = sessions.sumOf { it.minutes }
                 save()
                 onComplete()
             },
@@ -433,6 +468,7 @@ object AppState {
             putString("token", token)
             putString("grade", grade?.name); putBoolean("loggedIn", loggedIn)
             putInt("level", level); putInt("xp", xp); putInt("totalXP", totalXP)
+            putInt("maxXP", maxXP)
             putInt("streak", streak); putInt("totalMins", totalMins)
             putInt("quizzesCompleted", quizzesCompleted)
             putBoolean("streakAtRisk", streakAtRisk)
@@ -445,6 +481,8 @@ object AppState {
             putString("achievements", gson.toJson(achievements))
             putString("sessions",     gson.toJson(sessionHistory))
             putString("quizHistory",  gson.toJson(quizHistory))
+            putString("inventory",    gson.toJson(inventory))
+            putString("equipment",    gson.toJson(equipment))
         }.apply()
     }
 
@@ -455,8 +493,6 @@ object AppState {
         token    = prefs.getString("token", "") ?: ""
         if (token.isNotEmpty()) {
             ApiRepository.setToken(token)
-            // Optional: Auto-refresh data on load
-            // refreshUserData() 
         }
         grade    = prefs.getString("grade", null)
             ?.let { try { GradeLevel.valueOf(it) } catch (_: Exception) { null } }
@@ -464,22 +500,25 @@ object AppState {
         level    = prefs.getInt("level", 1)
         xp       = prefs.getInt("xp", 0)
         totalXP  = prefs.getInt("totalXP", 0)
+        maxXP    = prefs.getInt("maxXP", xpForNext(level))
         streak   = prefs.getInt("streak", 0)
         totalMins        = prefs.getInt("totalMins", 0)
         quizzesCompleted = prefs.getInt("quizzesCompleted", 0)
         streakAtRisk     = prefs.getBoolean("streakAtRisk", false)
-        coins            = prefs.getInt("coins", 15000)
+        coins            = prefs.getInt("coins", 0)
         timeWarpCount      = prefs.getInt("twc",   0)
         secondChanceCount  = prefs.getInt("scc",   0)
         hintCount          = prefs.getInt("hintc", 0)
         streakBandaidCount = prefs.getInt("sbc",   0)
-        maxXP = xpForNext(level); rank = getRank(level)
+        rank = getRank(level)
 
         val questType   = object : TypeToken<List<Quest>>()            {}.type
         val quizType    = object : TypeToken<List<Quiz>>()             {}.type
         val achType     = object : TypeToken<List<Achievement>>()      {}.type
         val sessionType = object : TypeToken<List<SessionEntry>>()     {}.type
         val historyType = object : TypeToken<List<QuizHistoryEntry>>() {}.type
+        val itemType    = object : TypeToken<List<Item>>()             {}.type
+        val equipType   = object : TypeToken<Equipment>()              {}.type
 
         prefs.getString("quests",       null)?.let { s -> try { quests         = gson.fromJson(s, questType)   } catch (_: Exception) {} }
         prefs.getString("wquests",      null)?.let { s -> try { weeklyQuests   = gson.fromJson(s, questType)   } catch (_: Exception) {} }
@@ -487,5 +526,7 @@ object AppState {
         prefs.getString("achievements", null)?.let { s -> try { achievements   = gson.fromJson(s, achType)     } catch (_: Exception) {} }
         prefs.getString("sessions",     null)?.let { s -> try { sessionHistory = gson.fromJson(s, sessionType) } catch (_: Exception) {} }
         prefs.getString("quizHistory",  null)?.let { s -> try { quizHistory    = gson.fromJson(s, historyType) } catch (_: Exception) {} }
+        prefs.getString("inventory",    null)?.let { s -> try { inventory      = gson.fromJson(s, itemType)    } catch (_: Exception) {} }
+        prefs.getString("equipment",    null)?.let { s -> try { equipment      = gson.fromJson(s, equipType)   } catch (_: Exception) {} }
     }
 }

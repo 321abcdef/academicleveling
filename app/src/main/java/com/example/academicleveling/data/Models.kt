@@ -36,7 +36,9 @@ data class QuizQuestion(
     val correct:     Int          = 0,
     val exp:         String       = "",
     val type:        QuizType     = QuizType.MULTIPLE_CHOICE,
-    val identAnswer: String       = ""
+    val identAnswer: String       = "",
+    val id:          Int?         = null,
+    val choiceIds:   List<Int>?   = null
 )
 
 data class Quiz(
@@ -95,7 +97,9 @@ data class AnswerRecord(
     val wasRight:    Boolean,
     val type:        QuizType = QuizType.MULTIPLE_CHOICE,
     val identAnswer: String   = "",
-    val chosenText:  String   = ""
+    val chosenText:  String   = "",
+    val questionId:  Int?     = null,
+    val choiceId:    Int?     = null
 )
 
 data class QuizHistoryEntry(
