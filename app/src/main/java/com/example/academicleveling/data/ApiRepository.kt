@@ -2,6 +2,8 @@ package com.example.academicleveling.data
 
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -9,8 +11,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Query
 
 interface AcademicApi {
     @POST("login")
@@ -36,11 +40,17 @@ interface AcademicApi {
 
     @PUT("user")
     fun updateProfile(@Body request: UpdateProfileRequest): Call<UpdateProfileResponse>
+
+    @GET("quizzes")
+    fun quizzesBySearch(@Query("search") search: String): Call<JsonObject>
+
+    @GET("quizzes/{id}")
+    fun getQuizById(@Path("id") quizId: Int): Call<JsonObject>
 }
 
 object ApiRepository {
 
-    private const val BASE_URL = "https://academic-leveling-api.onrender.com/api/" // Replace with your actual API URL
+    private val BASE_URL = com.example.academicleveling.BuildConfig.API_BASE_URL // Replace with your actual API URL
 
     private val api: AcademicApi
     private val gson = com.google.gson.Gson()
@@ -178,7 +188,48 @@ object ApiRepository {
         onSuccess: (Quiz) -> Unit,
         onError: (String) -> Unit
     ) {
-        android.util.Log.d("ApiRepository", "[STUB] getQuizByCode($code)")
+        api.quizzesBySearch(code.trim()).enqueue(object : Callback<JsonObject> {
+            override fun onResponse(call: Call<JsonObject>, response: Response<JsonObject>) {
+                if (!response.isSuccessful) {
+                    val errorMsg = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch quiz: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                    return
+                }
+
+                val body = response.body()
+                val items = body?.getAsJsonArray("data")
+                val quizSummary = if (items != null) mapQuizSummary(items) else null
+                if (quizSummary == null) {
+                    onError("Quiz not found")
+                    return
+                }
+
+                api.getQuizById(quizSummary.id).enqueue(object : Callback<JsonObject> {
+                    override fun onResponse(call: Call<JsonObject>, response: Response<JsonObject>) {
+                        if (!response.isSuccessful) {
+                            onSuccess(quizSummary)
+                            return
+                        }
+                        val detailed = response.body()?.getAsJsonObject("data")?.let { mapQuizDetail(it) }
+                        onSuccess(detailed ?: quizSummary)
+                    }
+
+                    override fun onFailure(call: Call<JsonObject>, t: Throwable) {
+                        onSuccess(quizSummary)
+                    }
+                })
+            }
+
+            override fun onFailure(call: Call<JsonObject>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
     }
 
     fun createQuiz(
@@ -232,7 +283,19 @@ object ApiRepository {
         onSuccess: (Map<String, Any>) -> Unit,
         onError: (String) -> Unit
     ) {
-        android.util.Log.d("ApiRepository", "[STUB] getProfile()")
+        getUserInfo(
+            onSuccess = { response ->
+                onSuccess(
+                    mapOf(
+                        "username" to response.data.username,
+                        "email" to response.data.email,
+                        "level" to response.data.progress.level,
+                        "coins" to response.data.coins
+                    )
+                )
+            },
+            onError = onError
+        )
     }
 
     fun updateProfile(
@@ -364,5 +427,97 @@ object ApiRepository {
         onError: (String) -> Unit
     ) {
         android.util.Log.d("ApiRepository", "[STUB] claimAchievement(id=$achievementId)")
+    }
+
+    private fun mapQuizSummary(items: JsonArray): Quiz? {
+        val first = items.firstOrNull() ?: return null
+        if (!first.isJsonObject) return null
+        val o = first.asJsonObject
+        return Quiz(
+            id = o.get("id")?.asInt ?: 0,
+            title = o.get("title")?.asString ?: "Untitled",
+            creator = o.getAsJsonObject("user")?.get("name")?.asString
+                ?: o.getAsJsonObject("user")?.get("username")?.asString
+                ?: "Unknown",
+            creatorName = o.getAsJsonObject("user")?.get("name")?.asString
+                ?: o.getAsJsonObject("user")?.get("username")?.asString
+                ?: "Unknown",
+            questions = emptyList(),
+            subject = o.get("subject")?.asString ?: "General",
+            gradeLevel = o.get("grade_level")?.asString ?: "all",
+            code = o.get("quiz_code")?.asString ?: "",
+            difficulty = parseDifficulty(o.get("difficulty")?.asString),
+            quizType = parseQuizType(o.get("type")?.asString)
+        )
+    }
+
+    private fun mapQuizDetail(o: JsonObject): Quiz {
+        val questions = o.getAsJsonArray("questions")
+            ?.mapNotNull { questionEl ->
+                if (!questionEl.isJsonObject) return@mapNotNull null
+                val questionObj = questionEl.asJsonObject
+                val type = parseQuizType(questionObj.get("type")?.asString)
+                val choices = questionObj.getAsJsonArray("choices")
+                    ?.mapNotNull { choiceEl ->
+                        if (!choiceEl.isJsonObject) return@mapNotNull null
+                        val choiceObj = choiceEl.asJsonObject
+                        choiceObj.get("choice_text")?.asString
+                    }
+                    ?: emptyList()
+                val correctIndex = questionObj.getAsJsonArray("choices")
+                    ?.indexOfFirst { c ->
+                        c.isJsonObject &&
+                            c.asJsonObject.get("is_correct")?.asBoolean == true
+                    }
+                    ?.takeIf { it >= 0 } ?: 0
+
+                QuizQuestion(
+                    q = questionObj.get("question_text")?.asString ?: "",
+                    opts = choices,
+                    correct = correctIndex,
+                    exp = questionObj.get("explanation")?.asString ?: "",
+                    type = type,
+                    identAnswer = questionObj.get("correct_answer")?.asString ?: ""
+                )
+            } ?: emptyList()
+
+        return Quiz(
+            id = o.get("id")?.asInt ?: 0,
+            title = o.get("title")?.asString ?: "Untitled",
+            creator = o.getAsJsonObject("user")?.get("name")?.asString
+                ?: o.getAsJsonObject("user")?.get("username")?.asString
+                ?: "Unknown",
+            creatorName = o.getAsJsonObject("user")?.get("name")?.asString
+                ?: o.getAsJsonObject("user")?.get("username")?.asString
+                ?: "Unknown",
+            questions = questions,
+            subject = o.get("subject")?.asString ?: "General",
+            gradeLevel = o.get("grade_level")?.asString ?: "all",
+            difficulty = parseDifficulty(o.get("difficulty")?.asString),
+            code = o.get("quiz_code")?.asString ?: "",
+            quizType = parseQuizType(o.get("type")?.asString),
+            timerMode = parseTimerMode(o.get("timer_mode")?.asString),
+            shuffleQuestions = o.get("is_question_shuffled")?.asBoolean ?: false,
+            shuffleOptions = o.get("is_choices_shuffled")?.asBoolean ?: false
+        )
+    }
+
+    private fun parseQuizType(value: String?): QuizType = when (value?.lowercase()) {
+        "true_false" -> QuizType.TRUE_FALSE
+        "identification" -> QuizType.IDENTIFICATION
+        "mixed" -> QuizType.MIX
+        else -> QuizType.MULTIPLE_CHOICE
+    }
+
+    private fun parseDifficulty(value: String?): Difficulty = when (value?.lowercase()) {
+        "easy" -> Difficulty.EASY
+        "hard" -> Difficulty.HARD
+        else -> Difficulty.MEDIUM
+    }
+
+    private fun parseTimerMode(value: String?): QuizTimerMode = when (value?.lowercase()) {
+        "quiz", "whole_quiz" -> QuizTimerMode.WHOLE_QUIZ
+        "question", "per_question" -> QuizTimerMode.PER_QUESTION
+        else -> QuizTimerMode.NONE
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.academicleveling.data.ApiRepository
 import com.example.academicleveling.data.AppState
 import com.example.academicleveling.data.Quiz
 import com.example.academicleveling.ui.shared.SoundManager
@@ -56,6 +58,7 @@ fun EnterQuizCodeScreen(
 ) {
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
 
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
@@ -114,20 +117,64 @@ fun EnterQuizCodeScreen(
                                 textColor = TextPrimary
                             )
                             TealButton(
-                                label = "FIND QUIZ",
+                                label = if (isLoading) "SEARCHING..." else "FIND QUIZ",
                                 onClick = {
-                                    val quiz = AppState.findByCode(code)
-                                    if (quiz != null) {
-                                        SoundManager.navigate()
-                                        onFound(quiz)
-                                    } else {
-                                        SoundManager.error()
-                                        error = "Code not found. Check and try again."
-                                    }
+                                    val normalizedCode = code.trim()
+                                    if (normalizedCode.isBlank()) return@TealButton
+
+                                    isLoading = true
+                                    error = ""
+                                    ApiRepository.getQuizByCode(
+                                        code = normalizedCode,
+                                        onSuccess = { apiQuiz ->
+                                            if (apiQuiz.questions.isEmpty()) {
+                                                val localQuiz = AppState.findByCode(normalizedCode)
+                                                isLoading = false
+                                                if (localQuiz != null) {
+                                                    SoundManager.navigate()
+                                                    onFound(localQuiz)
+                                                } else {
+                                                    SoundManager.error()
+                                                    error = "Quiz was found but has no questions yet."
+                                                }
+                                                return@getQuizByCode
+                                            }
+                                            isLoading = false
+                                            SoundManager.navigate()
+                                            onFound(apiQuiz)
+                                        },
+                                        onError = { apiError ->
+                                            val localQuiz = AppState.findByCode(normalizedCode)
+                                            isLoading = false
+                                            if (localQuiz != null) {
+                                                SoundManager.navigate()
+                                                onFound(localQuiz)
+                                            } else {
+                                                SoundManager.error()
+                                                error = if (apiError.isBlank()) {
+                                                    "Code not found. Check and try again."
+                                                } else {
+                                                    apiError
+                                                }
+                                            }
+                                        }
+                                    )
                                 },
                                 modifier = Modifier.weight(1f),
-                                enabled = code.isNotBlank()
+                                enabled = code.isNotBlank() && !isLoading
                             )
+                        }
+                        if (isLoading) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Teal
+                                )
+                            }
                         }
                     }
                 }

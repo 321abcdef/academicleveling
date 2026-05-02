@@ -1,0 +1,1030 @@
+{
+  "info": {
+    "_postman_id": "9be359da-88dd-4830-b791-2fce7209c747",
+    "name": "Academic Leveling API",
+    "description": "The **Academic Leveling API** is a robust backend service designed to manage educational assessments, student leveling, and quiz distribution. Built with **Laravel 12** and **Sanctum**, it provides a secure environment for users to create structured quizzes with varying difficulty levels and subjects.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50106037",
+    "_collection_link": "https://go.postman.co/collection/49186475-9be359da-88dd-4830-b791-2fce7209c747?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Password Management",
+          "item": [
+            {
+              "name": "Change Password",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      ""
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"current_password\": \"passworda\",\r\n    \"new_password\": \"password\",\r\n    \"new_password_confirmation\": \"password\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/change-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "change-password"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Forgot Password",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();\r",
+                      "\r",
+                      "pm.collectionVariables.set(\"token\", res.token);"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"email\": \"maglipon.denmarc.amar@gmail.com\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/forgot-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "forgot-password"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Reset Password",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();\r",
+                      "\r",
+                      "pm.collectionVariables.set(\"token\", res.token);"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"email\": \"maglipon.denmarc.amar@gmail.com\",\r\n    \"password\": \"password1\",\r\n    \"password_confirmation\": \"password1\",\r\n    \"token\": \"4d664ffc170ded29aa735aac4756e619407ec938ff4849daff66d231971d9b4c\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/reset-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reset-password"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Log in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.collectionVariables.set(\"token\", res.token);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"login\": \"test@example.com\",\r\n    \"password\": \"password\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            },
+            "description": "Authenticates an existing user and issues a new API token.\n\n- **Request Body:** Requires valid `login` (email _or_ username) and `password`.\n    \n- **Error (401):** Returns \"Invalid credentials\" if the login or password does not match.\n    \n- **Note:** Each login generates a new token. You can have multiple active tokens across different devices."
+          },
+          "response": []
+        },
+        {
+          "name": "Log out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{base_url}}/api/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logout"
+              ]
+            },
+            "description": "Revokes the current access token being used for the request.\n\n- **Authentication:** Requires a valid Bearer Token.\n    \n- **Result:** Once this is called, the specific token used for the request is deleted from the database and can no longer be used."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user"
+              ]
+            },
+            "description": "Returns the profile information of the currently authenticated user.\n\n- **Purpose:** This endpoint is primarily used by frontend applications to \"re-sync\" the user's state. If a user has a token stored in local storage, they can call this endpoint to fetch their account details and confirm the session is still active.\n    \n- **Response:** A JSON object containing the user's `id`, `name`, `email`, and timestamps.\n    \n- **Security:** If the Bearer Token is missing, expired, or invalid, the API will return a `401 Unauthorized` response."
+          },
+          "response": []
+        },
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.collectionVariables.set(\"token\", res.token);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"username\" : \"Denmarc\",\r\n    \"email\": \"maglipon.denmarc.amar@gmail.com\",\r\n    \"password\": \"password\",\r\n    \"password_confirmation\": \"password\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "register"
+              ]
+            },
+            "description": "Creates a new user account and automatically logs them in.\n\n- **Validation:** \\* `email` must be unique in the database.\n    \n    - `password` must be at least 8 characters and requires a `password_confirmation` field in the request body.\n        \n- **Success (201):** Returns the user object and the initial API token."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Info",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"username\" : \"Denmarc\",\r\n    \"email\": \"maglipon.denmarc.amar@gmail.com\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "This module handles user identity and session management using **Laravel Sanctum**. Successful registration or login returns a **Plain Text Token** that must be used to authorize subsequent requests."
+    },
+    {
+      "name": "Quizzes",
+      "item": [
+        {
+          "name": "Attempts",
+          "item": [
+            {
+              "name": "Quiz History",
+              "item": [
+                {
+                  "name": "Get All Attempts",
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": ""
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/api/attempts",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "attempts"
+                      ]
+                    },
+                    "description": "Returns a paginated list of the authenticated user's past quiz attempts.\n\n- Retrieves all attempts made by the current user\n    \n- Includes basic attempt and quiz info\n    \n- Paginated (10 per page)\n    \n\nQuery Parameters\n\n| Parameter | Type | Optional | Description |\n| --- | --- | --- | --- |\n| page | int | Yes | Page number for pagination |"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Single Attempt",
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": ""
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/api/attempts/3",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "attempts",
+                        "3"
+                      ]
+                    },
+                    "description": "Returns full details of a specific attempt, including answers.\n\n- Retrieves a single attempt\n    \n- Includes:\n    \n    - quiz info\n        \n    - user answers (snapshot)\n        \n    - correctness\n        \n\n**Authorization**\n\n- Users can only access **their own attempts**"
+                  },
+                  "response": []
+                }
+              ],
+              "description": "These endpoints allow an authenticated user to view their **quiz attempt history** and **detailed attempt results.**"
+            },
+            {
+              "name": "Start",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/quizzes/1/attempts",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "quizzes",
+                    "1",
+                    "attempts"
+                  ]
+                },
+                "description": "Creates a new attempt for a specific quiz.\n\n**Behavior:**\n\n- Initializes a new attempt for the authenticated user\n    \n- Sets `started_at` timestamp\n    \n- Returns the generated `attempt_id`  \n    \n\n**Access Control:**\n\nIf the quiz is private, only the owner can start an attempt. Other users will receive a 403 Unauthorized error."
+              },
+              "response": []
+            },
+            {
+              "name": "Answer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"question_id\" : 3,\r\n    \"choice_id\" : 4,\r\n    \"answer_text\" : null\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/attempts/3/answers",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "attempts",
+                    "3",
+                    "answers"
+                  ]
+                },
+                "description": "Saves or updates an answer for a specific question in an attempt.\n\n**Ownership:**\n\nOnly the user who owns the attempt can save answers.\n\n**Answer Handling:**\n\n- `choice_id` is used for multiple choice and true/false questions\n    \n- `answer_text` is used for identification questions\n    \n- Automatically evaluates correctness (`is_correct`)\n    \n\n**Update Behavior:**\n\n- If the question was already answered, the answer is updated\n    \n- Allows multiple edits before submission\n    \n\n**Restrictions:**\n\n- Cannot save answers if the attempt is already submitted"
+              },
+              "response": []
+            },
+            {
+              "name": "Submit",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/attempts/3/submit",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "attempts",
+                    "3",
+                    "submit"
+                  ]
+                },
+                "description": "Finalizes the attempt and calculates the result based on saved answers.\n\n**Behavior:**\n\n- Computes total score\n    \n- Counts correct answers\n    \n- Sets `completed_at` timestamp\n    \n\n**Scoring:**\n\n- Only correct answers are counted\n    \n- Each question uses its assigned `points` value\n    \n\n**Restrictions:**\n\n- Cannot submit an already completed attempt\n    \n- Only the attempt owner can submit"
+              },
+              "response": []
+            },
+            {
+              "name": "Submit All",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"answers\": [\r\n    {\r\n      \"question_id\": 1,\r\n      \"choice_id\": 1\r\n    },\r\n    {\r\n      \"question_id\": 2,\r\n      \"choice_id\": 4\r\n    },\r\n    {\r\n      \"question_id\": 3,\r\n      \"answer_text\": \"Taylor Otwell\"\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/attempts/2/submit-all",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "attempts",
+                    "2",
+                    "submit-all"
+                  ]
+                },
+                "description": "Submits all answers in one request.\n\n**Input Requirement:** You must provide an `answers` array, where each item includes:\n\n- `question_id`\n    \n- `choice_id` (optional)\n    \n- `answer_text` (optional)\n    \n\n**Behavior:**\n\n- Saves all answers in one transaction\n    \n- Calculates total score immediately\n    \n- Counts correct answers\n    \n- Marks attempt as completed\n    \n\n**Answer Handling:**\n\n- Supports mixed question types\n    \n- Automatically evaluates correctness per answer\n    \n\n**Safety Handling:**\n\n- Questions not belonging to the quiz are ignored\n    \n\n**Restrictions:**\n\n- Cannot be used on an already submitted attempt\n    \n- Only the attempt owner can submit"
+              },
+              "response": []
+            }
+          ],
+          "description": "Handles the full lifecycle of a quiz attempt, including starting an attempt, answering questions, and submitting results.\n\n**Scope:** This folder contains endpoints responsible for user interactions during a quiz session.\n\n**Flow Options:**\n\n- **Step-by-step flow:** Start an attempt → Save answers per question → Submit attempt\n    \n- **One-shot flow:** Start an attempt → Submit all answers at once\n    \n\n**Core Features:**\n\n- Attempt initialization and tracking (`started_at`, `completed_at`)\n    \n- Per-question answer saving with automatic correctness evaluation\n    \n- Final scoring based on question points\n    \n- Support for multiple question types (multiple choice, true/false, identification)\n    \n\n**Access Control:**\n\n- All endpoints require authentication\n    \n- Users can only access and modify their own attempts\n    \n- Quiz visibility rules (public/private) are enforced on attempt creation\n    \n\n**Notes:**\n\n- Attempts cannot be modified after submission\n    \n- `submit` uses previously saved answers, while `submit-all` processes answers in a single request\n    \n- Designed to support both interactive quizzes and instant submission modes"
+        },
+        {
+          "name": "Get All Quizzes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/quizzes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quizzes"
+              ]
+            },
+            "description": "Fetches a paginated list of quizzes. This endpoint returns all **public quizzes globally**, plus any **private quizzes that belong to the authenticated user**.\n\n#### Pagination\n\n- Returns **10 items per page**\n    \n\n#### Includes\n\n- **User (creator) details**\n    \n- **Total number of questions**\n    \n\n#### Query Parameters\n\n- `search` _(optional)_ — Search by quiz code or title\n    \n- `difficulty` _(optional)_ — Filter by difficulty (`easy`, `medium`, `hard`)\n    \n- `grade_level` _(optional)_ — Filter by grade level (`all`, `g7-g12`, `college`)\n    \n- `page` _(optional)_ — Page number for pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Quiz",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"title\": \"Basic Programming Quiz\",\r\n  \"description\": \"Test your knowledge about programming basics\",\r\n  \"subject\": \"CC101\",\r\n  \"grade_level\": \"college\",\r\n  \"type\": \"mixed\",\r\n  \"difficulty\" : \"hard\",\r\n  \"timer_mode\" : \"quiz\",\r\n  \"is_question_shuffled\": true,\r\n  \"is_choices_shuffled\": true,\r\n  \"is_public\": true,\r\n  \"questions\": [\r\n    {\r\n      \"question_text\": \"What does HTML stand for?\",\r\n      \"type\": \"multiple_choice\",\r\n      \"points\": 1,\r\n      \"order\": 1,\r\n      \"choices\": [\r\n        {\r\n          \"choice_text\": \"Hyper Text Markup Language\",\r\n          \"is_correct\": true\r\n        },\r\n        {\r\n          \"choice_text\": \"High Text Machine Language\",\r\n          \"is_correct\": false\r\n        },\r\n        {\r\n          \"choice_text\": \"Hyperlinks Text Mark Language\",\r\n          \"is_correct\": false\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"question_text\": \"PHP is a programming language.\",\r\n      \"type\": \"true_false\",\r\n      \"points\": 1,\r\n      \"order\": 2,\r\n      \"choices\": [\r\n        {\r\n          \"choice_text\": \"True\",\r\n          \"is_correct\": true\r\n        },\r\n        {\r\n          \"choice_text\": \"False\",\r\n          \"is_correct\": false\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"question_text\": \"Who created Laravel?\",\r\n      \"type\": \"identification\",\r\n      \"points\": 1,\r\n      \"order\": 3,\r\n      \"correct_answer\": \"Taylor Otwell\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/quizzes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quizzes"
+              ]
+            },
+            "description": "Creates a new quiz along with its questions and choices in a single transaction.\n\n- **Quiz Code:** If `is_public` is set to `true`, the system automatically generates a unique 8-character code.\n    \n- **Nested Data:** You must provide a `questions` array. Each question can optionally include a `choices` array.\n    \n- **Default Values:** `grade_level` defaults to 'all', `type` to 'multiple_choice', and `difficulty` to 'easy'."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Quiz",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/quizzes/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quizzes",
+                "1"
+              ]
+            },
+            "description": "Retrieve full details for a specific quiz ID, including all questions and their possible choices.\n\n- **Security:** If the quiz is private, only the owner can view it. Others will receive a `403 Unauthorized` error."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Quiz",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"title\": \"Basic Programming Quiz\",\r\n  \"description\": \"Test your knowledge about programming basics\",\r\n  \"subject\": \"CC101\",\r\n  \"grade_level\": \"college\",\r\n  \"type\": \"true_false\",\r\n  \"difficulty\" : \"easy\",\r\n  \"timer_mode\" : \"none\",\r\n  \"is_question_shuffled\": true,\r\n  \"is_choices_shuffled\": true,\r\n  \"is_public\": true,\r\n  \"questions\": [\r\n    {\r\n      \"question_text\": \"What does HTML stand for?\",\r\n      \"type\": \"multiple_choice\",\r\n      \"points\": 2,\r\n      \"order\": 1,\r\n      \"choices\": [\r\n        {\r\n          \"choice_text\": \"Hyper Text Markup Language\",\r\n          \"is_correct\": true\r\n        },\r\n        {\r\n          \"choice_text\": \"High Text Machine Language\",\r\n          \"is_correct\": false\r\n        },\r\n        {\r\n          \"choice_text\": \"Hyperlinks Text Mark Language\",\r\n          \"is_correct\": false\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"question_text\": \"PHP is a programming language.\",\r\n      \"type\": \"true_false\",\r\n      \"points\": 1,\r\n      \"order\": 2,\r\n      \"choices\": [\r\n        {\r\n          \"choice_text\": \"True\",\r\n          \"is_correct\": true\r\n        },\r\n        {\r\n          \"choice_text\": \"False\",\r\n          \"is_correct\": false\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"question_text\": \"Who created Laravel?\",\r\n      \"type\": \"identification\",\r\n      \"points\": 3,\r\n      \"order\": 3,\r\n      \"correct_answer\": \"Taylor Otwell\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/quizzes/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quizzes",
+                "1"
+              ]
+            },
+            "description": "Updates the metadata of an existing quiz.\n\n- **Question Overhaul:** If you pass a `questions` array in this request, the API will **delete all existing questions** for this quiz and replace them with the new set.\n    \n- **Privacy Toggle:** Changing a quiz from private to public will trigger the generation of a new `quiz_code`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Quiz",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/quizzes/4",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quizzes",
+                "4"
+              ]
+            },
+            "description": "Permanently deletes the quiz.\n\n- **Restriction:** Only the creator of the quiz can perform this action."
+          },
+          "response": []
+        },
+        {
+          "name": "My Quizzes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/quizzes/mine",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quizzes",
+                "mine"
+              ]
+            },
+            "description": "A dedicated endpoint to retrieve only the quizzes created by the currently authenticated user, regardless of whether they are public or private.\n\n- **Pagination:** 10 items per page."
+          },
+          "response": []
+        }
+      ],
+      "description": "The Quizzes module provides a comprehensive suite of endpoints for creating, managing, and discovering academic assessments. It supports complex question structures, customizable timer modes, and privacy settings."
+    },
+    {
+      "name": "Study Sessions",
+      "item": [
+        {
+          "name": "Get All Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/study-sessions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "study-sessions"
+              ]
+            },
+            "description": "Retrieve all study sessions of the authenticated user.\n\n**Behavior:**\n\n- Returns all sessions ordered by most recent (`session_at` descending)\n    \n\n**Access Control:**\n\n- Authentication required\n    \n- Users can only view their own study sessions"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"duration\": 3600,\r\n  \"session_at\": \"2026-03-24T14:35:00\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/study-sessions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "study-sessions"
+              ]
+            },
+            "description": "Stores a new study session for the authenticated user.\n\n**Input Requirement:**\n\n- `session_at` (valid date/time)\n    \n- `duration` in seconds (integer, minimum of 300)\n    \n\n**Behavior:**\n\n- Creates a new study session record\n    \n- Includes a success message in the response\n    \n\n**Response Code:**\n\n- `201 Created` on success\n    \n\n**Access Control:**\n\n- Authentication required\n    \n- Users can only create sessions for themselves"
+          },
+          "response": []
+        }
+      ],
+      "description": "Manages user study activity by recording and retrieving study sessions.\n\n**Scope:** This folder contains endpoints for tracking how long and when a user studies.\n\n**Core Features:**\n\n- Store study sessions with date and duration\n    \n- Retrieve all study sessions for the authenticated user\n    \n- Sessions are ordered by most recent (`session_at`)\n    \n\n**Data Handling:**\n\n- Each session includes:\n    \n    - `session_at` (date and time of study)\n        \n    - `duration` (in seconds)\n        \n- Duration must be a positive integer (longer than 300 seconds)\n    \n\n**Behavior:**\n\n- Creating a session logs the study activity\n    \n\n**Access Control:**\n\n- All endpoints require authentication\n    \n- Users can only access and create their own study sessions\n    \n\n**Notes:**\n\n- Designed for time-based progress tracking"
+    },
+    {
+      "name": "Quests",
+      "item": [
+        {
+          "name": "Get All Quests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/quests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quests"
+              ]
+            },
+            "description": "Retrieve all quests grouped by **daily** and **weekly**, including completion status, rewards, and progress of the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Claim Quest Rewards",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/quests/1/claim",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "quests",
+                "1",
+                "claim"
+              ]
+            },
+            "description": "Claim rewards for a completed quest.\n\n**Behavior:**\n\n- Grants EXP and coins.\n    \n- Returns gained coins and exp\n    \n\nNotes:\n\n- A quest reward can only be claimed it is completed\n    \n- A quest reward can only be claimed once"
+          },
+          "response": []
+        }
+      ],
+      "description": "This folder contains endpoints related to the quest system in the application.\n\nQuests are time-based objectives (daily or weekly) that users can complete by performing specific actions such as finishing quizzes or study sessions. Each quest tracks the user’s progress within a defined period and provides rewards upon completion.\n\nThe endpoints in this folder allow you to:  \n\\- Retrieve all active quests along with the user’s current progress, completion status, and reward details.  \n\\- Claim rewards for completed quests, granting experience points (EXP) and coins."
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://academic-leveling-api.vercel.app/"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

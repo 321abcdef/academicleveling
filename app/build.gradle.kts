@@ -13,7 +13,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-        buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.5:8000/api/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://academic-leveling-api.vercel.app/api/\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,6 +34,15 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        // Work around Android Lint crash in Compose's RememberInComposition detector
+        // (IncompatibleClassChangeError with Kotlin analysis API on some toolchain combos).
+        disable += "RememberInComposition"
+        disable += "FrequentlyChangingValue"
+        disable += "NullSafeMutableLiveData"
+        disable += "AutoboxingStateCreation"
     }
 }
 
