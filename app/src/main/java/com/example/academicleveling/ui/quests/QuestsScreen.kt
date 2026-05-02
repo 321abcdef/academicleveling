@@ -40,6 +40,10 @@ fun QuestsScreen(
     var dailyClaimMsg  by remember { mutableStateOf("") }
     var weeklyClaimMsg by remember { mutableStateOf("") }
 
+    // Observe claim state so UI updates immediately after claiming
+    val dailyClaimed  = AppState.isDailyBonusClaimed()
+    val weeklyClaimed = AppState.isWeeklyBonusClaimed()
+
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
             TopBar()
@@ -124,8 +128,10 @@ fun QuestsScreen(
                     quests       = AppState.quests,
                     claimMsg     = dailyClaimMsg,
                     allDone      = AppState.quests.all { it.done },
+                    alreadyClaimed = dailyClaimed,
                     bonusLabel   = "CLAIM DAILY BONUS  •  +50 XP  +20 coins",
                     pendingLabel = "Complete all daily quests to claim bonus",
+                    claimedLabel = "Daily bonus already claimed  •  Come back tomorrow",
                     onComplete   = { id -> AppState.completeQuest(id) },
                     onClaim      = {
                         val earned = AppState.claimBonus()
@@ -144,8 +150,10 @@ fun QuestsScreen(
                     quests       = AppState.weeklyQuests,
                     claimMsg     = weeklyClaimMsg,
                     allDone      = AppState.weeklyQuests.all { it.done },
+                    alreadyClaimed = weeklyClaimed,
                     bonusLabel   = "CLAIM WEEKLY BONUS  •  +100 XP  +50 coins",
                     pendingLabel = "Complete all weekly quests to claim bonus",
+                    claimedLabel = "Weekly bonus already claimed  •  Come back next week",
                     onComplete   = { id -> AppState.completeQuest(id) },
                     onClaim      = {
                         val earned = AppState.claimWeeklyBonus()
@@ -164,17 +172,22 @@ fun QuestsScreen(
 
 @Composable
 private fun QuestSection(
-    title:        String,
-    titleIcon:    ImageVector,
-    accentColor:  Color,
-    quests:       List<Quest>,
-    claimMsg:     String,
-    allDone:      Boolean,
-    bonusLabel:   String,
-    pendingLabel: String,
-    onComplete:   (Int) -> Unit,
-    onClaim:      () -> Unit
+    title:         String,
+    titleIcon:     ImageVector,
+    accentColor:   Color,
+    quests:        List<Quest>,
+    claimMsg:      String,
+    allDone:       Boolean,
+    alreadyClaimed: Boolean,
+    bonusLabel:    String,
+    pendingLabel:  String,
+    claimedLabel:  String,
+    onComplete:    (Int) -> Unit,
+    onClaim:       () -> Unit
 ) {
+    // Button is active only when all quests are done AND bonus hasn't been claimed yet
+    val canClaim = allDone && !alreadyClaimed
+
     Column(
         modifier            = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
@@ -247,29 +260,60 @@ private fun QuestSection(
             }
         }
 
+        // Claim bonus button — three visual states: claimable, already claimed, pending
+        val buttonBg = when {
+            alreadyClaimed -> Color(0xFF1A1A2E)
+            canClaim       -> accentColor.copy(.20f)
+            else           -> Color(0xFF0D0D1A)
+        }
+        val buttonBorder = when {
+            alreadyClaimed -> Color(0xFF2A2A3E)
+            canClaim       -> accentColor
+            else           -> Color(0xFF2A2A3E)
+        }
+        val buttonLabel = when {
+            alreadyClaimed -> claimedLabel
+            canClaim       -> bonusLabel
+            else           -> pendingLabel
+        }
+        val buttonTextColor = when {
+            alreadyClaimed -> TextMuted
+            canClaim       -> accentColor
+            else           -> TextMuted
+        }
+        val buttonIcon = when {
+            alreadyClaimed -> Icons.Default.CheckCircle
+            canClaim       -> Icons.Default.CardGiftcard
+            else           -> null
+        }
+        val buttonIconTint = when {
+            alreadyClaimed -> SuccessGreen
+            else           -> accentColor
+        }
+
         Box(
             modifier = Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(if (allDone) accentColor.copy(.20f) else Color(0xFF0D0D1A))
-                .border(1.dp, if (allDone) accentColor else Color(0xFF2A2A3E), RoundedCornerShape(10.dp))
-                .clickable(enabled = allDone) { onClaim() }
+                .background(buttonBg)
+                .border(1.dp, buttonBorder, RoundedCornerShape(10.dp))
+                .clickable(enabled = canClaim) { onClaim() }
                 .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (allDone) {
+                if (buttonIcon != null) {
                     Icon(
-                        imageVector = Icons.Default.CardGiftcard,
+                        imageVector = buttonIcon,
                         contentDescription = null,
-                        tint = accentColor,
+                        tint = buttonIconTint,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    if (allDone) bonusLabel else pendingLabel,
+                    buttonLabel,
                     fontSize   = 11.sp,
-                    color      = if (allDone) accentColor else TextMuted,
+                    color      = buttonTextColor,
                     fontWeight = FontWeight.Bold
                 )
             }

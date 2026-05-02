@@ -72,6 +72,12 @@ object AppState {
         Quest(103, "COMPLETE 3 DAILY QUESTS",       200)
     ))
 
+    // ── Bonus claim tracking ──────────────────────────────────────────────
+    // Stores the date string (e.g. "2026-05-03") when the daily bonus was last claimed
+    var dailyBonusClaimedDate  by mutableStateOf("")
+    // Stores the Monday date string (e.g. "2026-04-28") of the week the weekly bonus was last claimed
+    var weeklyBonusClaimedDate by mutableStateOf("")
+
     // ── Quizzes ───────────────────────────────────────────────────────────
     var myQuizzes:        List<Quiz> by mutableStateOf(emptyList())
     var communityQuizzes: List<Quiz> by mutableStateOf(buildCommunityQuizzes())
@@ -106,11 +112,8 @@ object AppState {
         ApiRepository.setToken(token)
         name = response.data.username
         email = response.data.email
-        level = response.data.progress.level
-        xp = response.data.progress.currentExp
-        maxXP = response.data.progress.expToNextLevel
-        coins = response.data.coins
-        totalXP = response.data.totalExp ?: 0
+        // Progress (level, xp, coins) is stored locally — do NOT overwrite with API values
+        // so that progress is preserved across logout/login.
         loggedIn = true
         save()
     }
@@ -120,11 +123,15 @@ object AppState {
         ApiRepository.setToken(token)
         name = response.data.username
         email = response.data.email
-        level = response.data.progress.level
-        xp = response.data.progress.currentExp
-        maxXP = response.data.progress.expToNextLevel
-        coins = response.data.coins
-        totalXP = response.data.totalExp ?: 0
+        // Progress (level, xp, coins) is stored locally — do NOT overwrite with API values
+        // so that progress is preserved across logout/login.
+
+        // New account: reset quest progress and bonus claim dates so they start fresh
+        quests       = quests.map { it.copy(done = false) }
+        weeklyQuests = weeklyQuests.map { it.copy(done = false) }
+        dailyBonusClaimedDate  = ""
+        weeklyBonusClaimedDate = ""
+
         loggedIn = true
         save()
     }
@@ -133,13 +140,9 @@ object AppState {
         if (!loggedIn || token.isEmpty()) { onComplete(); return }
         ApiRepository.getUserInfo(
             onSuccess = { response ->
+                // Only sync identity fields — progress lives locally
                 name = response.data.username
                 email = response.data.email
-                level = response.data.progress.level
-                xp = response.data.progress.currentExp
-                maxXP = response.data.progress.expToNextLevel
-                coins = response.data.coins
-                totalXP = response.data.totalExp ?: 0
                 save()
                 onComplete()
             },
@@ -243,8 +246,31 @@ object AppState {
         checkAchievements(); save()
     }
 
-    fun claimBonus(): Int       = if (quests.all { it.done }) { addXP(50); addCoins(20); 50 } else 0
-    fun claimWeeklyBonus(): Int = if (weeklyQuests.all { it.done }) { addXP(100); addCoins(50); 100 } else 0
+    /** Returns XP earned, or 0 if not all done or already claimed today. */
+    fun claimBonus(): Int {
+        if (!quests.all { it.done }) return 0
+        val today = todayDateKey()
+        if (dailyBonusClaimedDate == today) return 0
+        dailyBonusClaimedDate = today
+        addXP(50); addCoins(20)
+        save()
+        return 50
+    }
+
+    /** Returns XP earned, or 0 if not all done or already claimed this week. */
+    fun claimWeeklyBonus(): Int {
+        if (!weeklyQuests.all { it.done }) return 0
+        val thisWeek = currentWeekKey()
+        if (weeklyBonusClaimedDate == thisWeek) return 0
+        weeklyBonusClaimedDate = thisWeek
+        addXP(100); addCoins(50)
+        save()
+        return 100
+    }
+
+    fun isDailyBonusClaimed():  Boolean = dailyBonusClaimedDate  == todayDateKey()
+    fun isWeeklyBonusClaimed(): Boolean = weeklyBonusClaimedDate == currentWeekKey()
+
     fun questsDone()  = quests.count { it.done }
     fun weeklyDone()  = weeklyQuests.count { it.done }
 
@@ -337,6 +363,28 @@ object AppState {
     fun getActivePerks(): List<Perk> = emptyList()
 
     // ══════════════════════════════════════════════════════════════════════
+    //  DATE HELPERS
+    // ══════════════════════════════════════════════════════════════════════
+
+    /** Returns today as "yyyy-MM-dd", e.g. "2026-05-03" */
+    private fun todayDateKey(): String {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        return sdf.format(java.util.Date())
+    }
+
+    /**
+     * Returns the Monday of the current week as "yyyy-MM-dd".
+     * This is the stable key used to identify the current week.
+     */
+    private fun currentWeekKey(): String {
+        val cal = java.util.Calendar.getInstance()
+        cal.firstDayOfWeek = java.util.Calendar.MONDAY
+        cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        return sdf.format(cal.time)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  PERSIST
     // ══════════════════════════════════════════════════════════════════════
 
@@ -359,6 +407,8 @@ object AppState {
             putString("achievements", gson.toJson(achievements))
             putString("sessions",     gson.toJson(sessionHistory))
             putString("quizHistory",  gson.toJson(quizHistory))
+            putString("dailyBonusClaimed",  dailyBonusClaimedDate)
+            putString("weeklyBonusClaimed", weeklyBonusClaimedDate)
         }.apply()
     }
 
@@ -369,8 +419,6 @@ object AppState {
         token    = prefs.getString("token", "") ?: ""
         if (token.isNotEmpty()) {
             ApiRepository.setToken(token)
-            // Optional: Auto-refresh data on load
-            // refreshUserData() 
         }
         grade    = prefs.getString("grade", null)
             ?.let { try { GradeLevel.valueOf(it) } catch (_: Exception) { null } }
@@ -389,6 +437,9 @@ object AppState {
         streakBandaidCount = prefs.getInt("sbc",   0)
         maxXP = xpForNext(level); rank = getRank(level)
 
+        dailyBonusClaimedDate  = prefs.getString("dailyBonusClaimed",  "") ?: ""
+        weeklyBonusClaimedDate = prefs.getString("weeklyBonusClaimed", "") ?: ""
+
         val questType   = object : TypeToken<List<Quest>>()            {}.type
         val quizType    = object : TypeToken<List<Quiz>>()             {}.type
         val achType     = object : TypeToken<List<Achievement>>()      {}.type
@@ -401,5 +452,24 @@ object AppState {
         prefs.getString("achievements", null)?.let { s -> try { achievements   = gson.fromJson(s, achType)     } catch (_: Exception) {} }
         prefs.getString("sessions",     null)?.let { s -> try { sessionHistory = gson.fromJson(s, sessionType) } catch (_: Exception) {} }
         prefs.getString("quizHistory",  null)?.let { s -> try { quizHistory    = gson.fromJson(s, historyType) } catch (_: Exception) {} }
+
+        // Reset daily quests if it's a new day
+        val today = todayDateKey()
+        val lastDailyReset = prefs.getString("lastDailyReset", "") ?: ""
+        if (lastDailyReset != today) {
+            quests = quests.map { it.copy(done = false) }
+            // Only clear the claimed flag if it's also a new day (not just a reset)
+            if (dailyBonusClaimedDate != today) dailyBonusClaimedDate = ""
+            prefs.edit().putString("lastDailyReset", today).apply()
+        }
+
+        // Reset weekly quests if it's a new week
+        val thisWeek = currentWeekKey()
+        val lastWeeklyReset = prefs.getString("lastWeeklyReset", "") ?: ""
+        if (lastWeeklyReset != thisWeek) {
+            weeklyQuests = weeklyQuests.map { it.copy(done = false) }
+            if (weeklyBonusClaimedDate != thisWeek) weeklyBonusClaimedDate = ""
+            prefs.edit().putString("lastWeeklyReset", thisWeek).apply()
+        }
     }
 }
