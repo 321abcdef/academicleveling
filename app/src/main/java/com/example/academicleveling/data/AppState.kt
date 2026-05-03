@@ -300,7 +300,10 @@ object AppState {
     fun recordQuizResult(quiz: Quiz, score: Int, answers: List<AnswerRecord>) {
         val entry = QuizHistoryEntry(quiz.id, quiz.title, quiz.code, todayString(), score, quiz.questions.size, answers)
         quizHistory = (listOf(entry) + quizHistory).take(50)
-        quizzesCompleted++; addCoins(score * 5); completeQuest(2)
+        quizzesCompleted++
+        // NOTE: XP and coins are NOT applied here — they come from the API response
+        // in PlayQuizScreen via AppState.addXP() and AppState.addCoins() directly.
+        completeQuest(2)
         val isMine = myQuizzes.any { it.id == quiz.id }
         if (!isMine) ApiRepository.notifyQuizComplete(quiz.id)
         checkAchievements(); saveAccount()
@@ -310,10 +313,12 @@ object AppState {
     //  STUDY SESSIONS
     // ══════════════════════════════════════════════════════════════════════
 
-    fun addStudySession(mins: Int) {
+    fun addStudySession(mins: Int, expFromApi: Int = 0, coinsFromApi: Int = 0) {
         totalMins += mins; streak++; streakAtRisk = false
-        val earned = mins * 2; addXP(earned); addCoins(mins)
-        sessionHistory = (listOf(SessionEntry(shortDate(), mins, earned)) + sessionHistory).take(10)
+        // Apply rewards from API response (not computed locally)
+        if (expFromApi > 0)   addXP(expFromApi)
+        if (coinsFromApi > 0) addCoins(coinsFromApi)
+        sessionHistory = (listOf(SessionEntry(shortDate(), mins, expFromApi)) + sessionHistory).take(10)
         completeQuest(1); completeQuest(4); checkAchievements(); saveAccount()
     }
 

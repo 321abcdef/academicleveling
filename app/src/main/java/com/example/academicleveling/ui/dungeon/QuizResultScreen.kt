@@ -25,9 +25,11 @@ import com.example.academicleveling.ui.theme.*
 
 @Composable
 fun QuizResultScreen(
-    quiz:    Quiz,
-    answers: List<AnswerRecord>,
-    onBack:  () -> Unit
+    quiz:        Quiz,
+    answers:     List<AnswerRecord>,
+    expEarned:   Int,   // from API response
+    coinsEarned: Int,   // from API response
+    onBack:      () -> Unit
 ) {
     val score = answers.count { it.wasRight }
     val total = answers.size
@@ -40,7 +42,6 @@ fun QuizResultScreen(
     val gradeColor = when (grade) {
         "S", "A" -> Gold; "B", "C" -> Teal; else -> DangerRed
     }
-    val coinsEarned = score * 5
 
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
@@ -69,9 +70,10 @@ fun QuizResultScreen(
                         fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextSecondary
                     )
                     Spacer(Modifier.height(12.dp))
+                    // Rewards from API response
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        RewardChip("+${coinsEarned} COINS", Gold,   Icons.Default.Paid)
-                        RewardChip("+${quiz.exp} XP",       Teal,   Icons.Default.Star)
+                        RewardChip("+$coinsEarned COINS", Gold, Icons.Default.Paid)
+                        RewardChip("+$expEarned XP",      Teal, Icons.Default.Star)
                     }
                     Spacer(Modifier.height(20.dp))
                     Button(
@@ -131,18 +133,12 @@ private fun AnswerReviewCard(index: Int, record: AnswerRecord) {
     val cardBg      = if (record.wasRight) Color(0xFF142914) else Color(0xFF2D1616)
     val statusColor = if (record.wasRight) SuccessGreen else DangerRed
 
-    // ── Resolve what to display as the correct answer ──────────────────────
-    // identAnswer is always populated for all question types from PlayQuizScreen.
-    // Fallback for True/False old entries only (index is sufficient to reconstruct).
     val correctAnswerDisplay = when {
         record.identAnswer.isNotBlank() -> record.identAnswer
         record.type == QuizType.TRUE_FALSE -> if (record.correct == 0) "True" else "False"
         else -> "—"
     }
 
-    // ── Resolve what to display as the user's answer ───────────────────────
-    // chosenText is always populated from PlayQuizScreen for all types.
-    // Fallback for True/False old entries only.
     val userAnswerDisplay = when {
         record.chosenText.isNotBlank() -> record.chosenText
         record.chosen == -1            -> "No answer / Time up"
@@ -158,7 +154,6 @@ private fun AnswerReviewCard(index: Int, record: AnswerRecord) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Header row
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             Text(
                 "QUESTION ${index + 1}",
@@ -176,7 +171,6 @@ private fun AnswerReviewCard(index: Int, record: AnswerRecord) {
             }
         }
 
-        // Question text
         Text(
             text       = record.question,
             fontSize   = 15.sp,
@@ -187,22 +181,13 @@ private fun AnswerReviewCard(index: Int, record: AnswerRecord) {
 
         HorizontalDivider(color = Color.White.copy(0.1f), thickness = 1.dp)
 
-        // Answers section
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // User's answer
             Column {
-                Text(
-                    "YOUR ANSWER:",
-                    fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary
-                )
+                Text("YOUR ANSWER:", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary)
                 AnswerBadge(text = userAnswerDisplay, color = statusColor)
             }
-            // Correct answer — always visible
             Column {
-                Text(
-                    "CORRECT ANSWER:",
-                    fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = SuccessGreen
-                )
+                Text("CORRECT ANSWER:", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = SuccessGreen)
                 AnswerBadge(text = correctAnswerDisplay, color = SuccessGreen)
             }
         }
@@ -218,11 +203,6 @@ private fun AnswerBadge(text: String, color: Color) {
             .background(color.copy(0.12f))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Text(
-            text       = text,
-            fontSize   = 14.sp,
-            color      = color,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Text(text = text, fontSize = 14.sp, color = color, fontWeight = FontWeight.ExtraBold)
     }
 }

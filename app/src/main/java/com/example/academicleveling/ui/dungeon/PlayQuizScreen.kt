@@ -61,11 +61,59 @@ fun PlayQuizScreen(
     var eliminatedOptions by remember { mutableStateOf(setOf<Int>()) }
     var fiftyFiftyUsed    by remember { mutableStateOf(false) }
 
+    // Rewards received from API after submission
+    var apiExpEarned   by remember { mutableStateOf(0) }
+    var apiCoinsEarned by remember { mutableStateOf(0) }
+    var apiAttemptId   by remember { mutableStateOf<Int?>(null) }
+
+    // Start attempt when screen opens
+    LaunchedEffect(quiz.id) {
+        ApiRepository.startAttempt(
+            quizId    = quiz.id,
+            onSuccess = { response -> apiAttemptId = response.attemptId },
+            onError   = { /* attempt not started, will fall back to local */ }
+        )
+    }
+
     fun correctTextFor(q: QuizQuestion): String = when (q.type) {
         QuizType.MULTIPLE_CHOICE -> q.opts.getOrElse(q.correct) { "" }
         QuizType.TRUE_FALSE      -> if (q.correct == 0) "True" else "False"
         QuizType.IDENTIFICATION  -> q.identAnswer.ifBlank { q.exp }.ifBlank { q.opts.getOrElse(q.correct) { "" } }
         else                     -> q.identAnswer.ifBlank { q.exp }.ifBlank { q.opts.getOrElse(q.correct) { "" } }
+    }
+
+    /** Submit quiz to API and apply rewards from response. Falls back to local if API fails. */
+    fun finishQuiz(finalAnswers: List<AnswerRecord>) {
+        val attemptId = apiAttemptId
+        if (attemptId != null) {
+            ApiRepository.submitAttempt(
+                attemptId = attemptId,
+                onSuccess = { response ->
+                    val rewards = response.data.rewards
+                    apiExpEarned   = rewards.exp
+                    apiCoinsEarned = rewards.coins
+                    // Apply rewards from API
+                    AppState.addXP(rewards.exp)
+                    AppState.addCoins(rewards.coins)
+                    // Record quiz for history/achievements (no local reward calc)
+                    AppState.recordQuizResult(quiz, finalAnswers.count { it.wasRight }, finalAnswers)
+                    showResults = true
+                },
+                onError = {
+                    // Fallback: compute locally if API fails
+                    AppState.recordQuizResult(quiz, finalAnswers.count { it.wasRight }, finalAnswers)
+                    apiExpEarned   = quiz.exp
+                    apiCoinsEarned = finalAnswers.count { it.wasRight } * 5
+                    showResults = true
+                }
+            )
+        } else {
+            // No attempt ID (API unavailable) — fallback to local
+            AppState.recordQuizResult(quiz, finalAnswers.count { it.wasRight }, finalAnswers)
+            apiExpEarned   = quiz.exp
+            apiCoinsEarned = finalAnswers.count { it.wasRight } * 5
+            showResults = true
+        }
     }
 
     fun applyTimeWarp() {
@@ -113,8 +161,7 @@ fun PlayQuizScreen(
                 wholeQuizSecs--
             }
             if (wholeQuizSecs == 0 && !showResults) {
-                AppState.recordQuizResult(quiz, answers.count { it.wasRight }, answers)
-                showResults = true
+                finishQuiz(answers)
             }
         }
     }
@@ -143,7 +190,13 @@ fun PlayQuizScreen(
     }
 
     if (showResults) {
-        QuizResultScreen(quiz = quiz, answers = answers, onBack = onBack)
+        QuizResultScreen(
+            quiz       = quiz,
+            answers    = answers,
+            expEarned  = apiExpEarned,
+            coinsEarned = apiCoinsEarned,
+            onBack     = onBack
+        )
         return
     }
 
@@ -169,33 +222,31 @@ fun PlayQuizScreen(
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(quiz.title, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 1)
-                    Text("${qIndex + 1} / ${questions.size}", fontSize = 11.sp, color = Teal)
+                    Text(
+                        quiz.title.take(24).uppercase(),
+                        fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.White
+                    )
+                    Text(
+                        "${qIndex + 1} / ${questions.size}",
+                        fontSize = 10.sp, color = Teal
+                    )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (hasTimer) {
-                        val displaySecs = when (quiz.timerMode) {
-                            QuizTimerMode.WHOLE_QUIZ   -> wholeQuizSecs
-                            QuizTimerMode.PER_QUESTION -> perQuestionSecs
-                            else -> 0
+                // Timer display
+                when (quiz.timerMode) {
+                    QuizTimerMode.WHOLE_QUIZ -> TimerBadge(wholeQuizSecs)
+                    QuizTimerMode.PER_QUESTION -> TimerBadge(perQuestionSecs)
+                    else -> {
+                        // Correct streak display
+                        val streakColor = if (correctStreak >= 3) Gold else Teal
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Whatshot, null, tint = streakColor, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text("$correctStreak", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = streakColor)
+                            }
+                            Text("streak", fontSize = 9.sp, color = Color.White.copy(.6f))
                         }
-                        val timerColor = if (displaySecs <= 10) DangerRed else Teal
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Timer, null, tint = timerColor, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(3.dp))
-                            Text("%02d:%02d".format(displaySecs / 60, displaySecs % 60),
-                                fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = timerColor)
-                        }
-                        Text("quiz countdown", fontSize = 9.sp, color = Color.White.copy(.6f))
-                    } else {
-                        val streakColor = if (correctStreak >= 3) Gold else Color.White
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Whatshot, null, tint = streakColor, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(3.dp))
-                            Text("$correctStreak", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = streakColor)
-                        }
-                        Text("streak", fontSize = 9.sp, color = Color.White.copy(.6f))
                     }
                 }
             }
@@ -225,139 +276,114 @@ fun PlayQuizScreen(
                         .clip(RoundedCornerShape(4.dp))
                         .background(Color(0xFF2A2A4A))
                 ) {
-                    Box(
-                        Modifier.fillMaxWidth(qIndex.toFloat() / questions.size)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Teal)
-                    )
+                    val progress = (qIndex + 1).toFloat() / questions.size
+                    Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(Teal))
                 }
 
                 QuizQuestionCard(
-                    q                 = q,
-                    qIndex            = qIndex,
-                    submitted         = submitted,
-                    selectedOption    = selectedOption,
-                    identInput        = identInput,
+                    q = q,
+                    qIndex = qIndex,
+                    submitted = submitted,
+                    selectedOption = selectedOption,
+                    identInput = identInput,
                     eliminatedOptions = eliminatedOptions,
-                    onOptionSelect    = { if (!submitted) selectedOption = it },
-                    onIdentChange     = { if (!submitted) identInput = it }
+                    onOptionSelect = { selectedOption = it },
+                    onIdentChange = { identInput = it }
                 )
 
+                Spacer(Modifier.height(8.dp))
+
                 if (!submitted) {
-                    val canSubmit = when (q.type) {
-                        QuizType.IDENTIFICATION -> identInput.isNotBlank()
-                        else                    -> selectedOption != null
-                    }
                     TealButton(
-                        label    = "SUBMIT ANSWER",
-                        enabled  = canSubmit,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick  = {
-                            SoundManager.click()
+                        label = "SUBMIT ANSWER",
+                        enabled = (q.type == QuizType.IDENTIFICATION && identInput.isNotBlank()) ||
+                                (q.type != QuizType.IDENTIFICATION && selectedOption != null),
+                        onClick = {
                             submitted = true
-                            val correctText = correctTextFor(q)
-                            val chosenText = when (q.type) {
-                                QuizType.MULTIPLE_CHOICE -> q.opts.getOrElse(selectedOption ?: -1) { "" }
-                                QuizType.TRUE_FALSE      -> if (selectedOption == 0) "True" else "False"
-                                else                     -> identInput.trim()
-                            }
                             val isRight = when (q.type) {
-                                QuizType.IDENTIFICATION -> identInput.trim().equals(correctText.trim(), ignoreCase = true)
-                                else                    -> selectedOption == q.correct
+                                QuizType.IDENTIFICATION -> identInput.trim().equals(q.identAnswer.ifBlank { q.exp }.ifBlank { q.opts.getOrElse(q.correct) { "" } }.trim(), ignoreCase = true)
+                                else -> selectedOption == q.correct
                             }
+
                             if (isRight) {
+                                SoundManager.correct()
                                 correctStreak++
-                                if (correctStreak % 3 == 0) {
-                                    AppState.addCoins(3)
-                                    streakBonusMsg = "$correctStreak streak!  +3 coins"
+                                if (correctStreak >= 3) {
+                                    val bonus = correctStreak * 2
+                                    streakBonusMsg = "STREAK BONUS: +$bonus XP!"
+                                    AppState.addXP(bonus)
                                 }
                             } else {
+                                SoundManager.wrong()
                                 correctStreak = 0
                                 streakBonusMsg = ""
                             }
+
                             answers = answers + AnswerRecord(
-                                question    = q.q,
-                                chosen      = selectedOption ?: -1,
-                                correct     = q.correct,
-                                wasRight    = isRight,
-                                type        = q.type,
-                                identAnswer = correctText,
-                                chosenText  = chosenText
+                                question = q.q,
+                                chosen = selectedOption ?: -1,
+                                correct = q.correct,
+                                wasRight = isRight,
+                                type = q.type,
+                                identAnswer = correctTextFor(q),
+                                chosenText = if (q.type == QuizType.IDENTIFICATION) identInput else (q.opts.getOrElse(selectedOption ?: -1) { "" })
                             )
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    if (!canSubmit) {
-                        Text("Select an answer before submitting",
-                            fontSize = 11.sp, color = TextMuted, textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth())
-                    }
                 } else {
-                    val isLast = qIndex == questions.lastIndex
+                    val isLast = qIndex == questions.size - 1
                     TealButton(
-                        label    = if (isLast) "FINISH QUIZ" else "NEXT QUESTION →",
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick  = {
-                            SoundManager.click()
+                        label = if (isLast) "FINISH QUIZ" else "NEXT QUESTION",
+                        color = if (isLast) Gold else Teal,
+                        textColor = if (isLast) Color(0xFF1A2332) else Color.White,
+                        onClick = {
                             if (isLast) {
-                                AppState.recordQuizResult(quiz, answers.count { it.wasRight }, answers)
-                                showResults = true
+                                finishQuiz(answers)
                             } else {
                                 qIndex++
-                                selectedOption    = null
-                                submitted         = false
-                                identInput        = ""
-                                streakBonusMsg    = ""
+                                selectedOption = null
+                                submitted = false
+                                identInput = ""
                                 eliminatedOptions = emptySet()
-                                fiftyFiftyUsed    = false
-                                if (quiz.timerMode == QuizTimerMode.PER_QUESTION)
-                                    perQuestionSecs = quiz.timerSeconds
+                                fiftyFiftyUsed = false
+                                streakBonusMsg = ""
                             }
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-                Spacer(Modifier.height(8.dp))
             }
 
-            // ── Power-up bar ───────────────────────────────────────────────
-            Row(
-                Modifier.fillMaxWidth().background(Color(0xFF12122A))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                Arrangement.spacedBy(8.dp), Alignment.CenterVertically
-            ) {
-                Text("POWER-UPS", fontSize = 9.sp, color = Color.White.copy(.7f),
-                    fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                Spacer(Modifier.weight(1f))
-                PowerUpChip(
-                    icon = Icons.Default.AccessTime, iconTint = Blue,
-                    count = AppState.timeWarpCount,
-                    enabled = hasTimer && AppState.timeWarpCount > 0,
-                    tooltip = if (!hasTimer) "No timer" else null,
-                    onUse = { applyTimeWarp() }
-                )
-                val fiftyEnabled = AppState.secondChanceCount > 0 && !submitted && !fiftyFiftyUsed &&
-                        q.type == QuizType.MULTIPLE_CHOICE && q.opts.size >= 4
-                PowerUpChip(
-                    icon = Icons.Default.Security, iconTint = Purple,
-                    count = AppState.secondChanceCount, enabled = fiftyEnabled,
-                    tooltip = when {
-                        q.type != QuizType.MULTIPLE_CHOICE -> "MC only"
-                        fiftyFiftyUsed -> "Used"
-                        submitted -> "Too late"
-                        else -> null
-                    },
-                    label = "50/50",
-                    onUse = { applyFiftyFifty() }
-                )
-                PowerUpChip(
-                    icon = Icons.Default.Lightbulb, iconTint = Gold,
-                    count = AppState.hintCount,
-                    enabled = AppState.hintCount > 0 && !submitted,
-                    tooltip = if (submitted && AppState.hintCount > 0) "Too late" else null,
-                    onUse = { applyHint() }
-                )
-            }
+            // ── Bottom power-up bar ────────────────────────────────────────
+            QuizPowerUpBar(
+                hasTimer = hasTimer,
+                submitted = submitted,
+                fiftyFiftyUsed = fiftyFiftyUsed,
+                isMcQuestion = q.type == QuizType.MULTIPLE_CHOICE && q.opts.size >= 4,
+                onTimeWarp = { applyTimeWarp() },
+                onFiftyFifty = { applyFiftyFifty() },
+                onHint = { applyHint() }
+            )
         }
+    }
+}
+
+@Composable
+private fun TimerBadge(seconds: Int) {
+    val timerColor = if (seconds <= 10) DangerRed else Teal
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Timer, null, tint = timerColor, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(3.dp))
+            Text(
+                "%02d:%02d".format(seconds / 60, seconds % 60),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = timerColor
+            )
+        }
+        Text("timer", fontSize = 9.sp, color = Color.White.copy(.6f))
     }
 }
 
