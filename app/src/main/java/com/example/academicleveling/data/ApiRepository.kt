@@ -11,6 +11,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Query
 
 interface AcademicApi {
     @POST("login")
@@ -39,6 +40,14 @@ interface AcademicApi {
 
     @GET("user/stats")
     fun getUserStats(): Call<UserStatsResponse>
+
+    @GET("quizzes")
+    fun getQuizzes(
+        @Query("search") search: String? = null,
+        @Query("difficulty") difficulty: String? = null,
+        @Query("grade_level") gradeLevel: String? = null,
+        @Query("page") page: Int? = null
+    ): Call<QuizListResponse>
 }
 
 object ApiRepository {
@@ -184,14 +193,6 @@ object ApiRepository {
         android.util.Log.d("ApiRepository", "[STUB] getQuizByCode($code)")
     }
 
-    fun createQuiz(
-        quiz: Quiz,
-        onSuccess: (Quiz) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        android.util.Log.d("ApiRepository", "[STUB] createQuiz(${quiz.title})")
-    }
-
     fun notifyQuizComplete(quizId: Int) {
         android.util.Log.d("ApiRepository", "[STUB] notifyQuizComplete(quizId=$quizId)")
     }
@@ -286,6 +287,36 @@ object ApiRepository {
                 }
             }
             override fun onFailure(call: Call<UserStatsResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getQuizzes(
+        search: String? = null,
+        difficulty: String? = null,
+        gradeLevel: String? = null,
+        page: Int? = null,
+        onSuccess: (QuizListResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getQuizzes(search, difficulty, gradeLevel, page).enqueue(object : Callback<QuizListResponse> {
+            override fun onResponse(call: Call<QuizListResponse>, response: Response<QuizListResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response body")
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch quizzes: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

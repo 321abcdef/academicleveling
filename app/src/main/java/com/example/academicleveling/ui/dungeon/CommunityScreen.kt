@@ -33,6 +33,7 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
     var filterDiff  by remember { mutableStateOf<Difficulty?>(null) }
     var filterGrade by remember { mutableStateOf("All") }
     var gradeOpen   by remember { mutableStateOf(false) }
+    var isLoading   by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
 
@@ -43,42 +44,36 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
     }
     LaunchedEffect(searchFlow) {
         searchFlow
-            .debounce(300L)
+            .debounce(500L)
             .collectLatest { debouncedSearch = it }
     }
 
     val gradeOptions = remember {
         listOf(
-            "All", "Grade 3", "Grade 4", "Grade 5", "Grade 6",
-            "Grade 7", "Grade 8", "Grade 9", "Grade 10",
-            "College 1", "College 2"
+            "All", "G7", "G8", "G9", "G10", "G11", "G12", "College"
         )
     }
 
-    // Quiz Data Merging
-    val allQuizzes: List<Quiz> = remember(
-        AppState.communityQuizzes.size,
-        AppState.myQuizzes.size
-    ) {
-        AppState.communityQuizzes + AppState.myQuizzes.filter { it.code.isNotBlank() }
+    // Load quizzes from API when filters change
+    LaunchedEffect(debouncedSearch, filterDiff, filterGrade) {
+        isLoading = true
+        val apiGrade = when(filterGrade) {
+            "All" -> null
+            "College" -> "college"
+            else -> filterGrade.lowercase() // handles g7, g8, etc.
+        }
+        AppState.refreshCommunityQuizzes(
+            search = if (debouncedSearch.isBlank()) null else debouncedSearch,
+            difficulty = filterDiff?.name?.lowercase(),
+            gradeLevel = apiGrade,
+            onComplete = { 
+                isLoading = false
+            }
+        )
     }
 
-    // Filtering Logic
-    val filtered: List<Quiz> = remember(allQuizzes, debouncedSearch, filterDiff, filterGrade) {
-        if (debouncedSearch.isBlank() && filterDiff == null && filterGrade == "All") {
-            allQuizzes
-        } else {
-            allQuizzes.filter { q ->
-                val matchSearch = debouncedSearch.isBlank() ||
-                        q.title.contains(debouncedSearch, true) ||
-                        q.creator.contains(debouncedSearch, true) ||
-                        q.code.contains(debouncedSearch, true)
-                val matchDiff  = filterDiff == null || q.difficulty == filterDiff
-                val matchGrade = filterGrade == "All" || q.gradeLevel == filterGrade
-                matchSearch && matchDiff && matchGrade
-            }
-        }
-    }
+    // Quiz Data: Filtered list is now just what's in AppState.communityQuizzes
+    val filtered = AppState.communityQuizzes
 
     // Auto-scroll to top on filter change
     LaunchedEffect(debouncedSearch, filterDiff, filterGrade) {
@@ -104,7 +99,7 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
                     modifier      = Modifier.fillMaxWidth(),
                     placeholder   = {
                         Text(
-                            "Search by title, creator, or code...",
+                            "Search by title or code...",
                             fontSize = 13.sp,
                             color = Color.White.copy(0.6f) // Clear placeholder
                         )
@@ -121,7 +116,7 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
                         cursorColor             = Teal
                     ),
                     leadingIcon = {
-                        Text("", fontSize = 18.sp, modifier = Modifier.padding(start = 8.dp))
+                        Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.padding(start = 8.dp))
                     },
                     trailingIcon = if (searchInput.isNotBlank()) {
                         {
@@ -191,11 +186,15 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
             }
 
             // RESULTS LIST
-            if (filtered.isEmpty()) {
+            if (isLoading && filtered.isEmpty()) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator(color = Teal)
+                }
+            } else if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     EmptyState(
                         icon     = Icons.Default.Search,
-                        tint     = Teal, // Pwede ka na maglagay ng kulay dito
+                        tint     = Teal,
                         title    = "No quizzes found",
                         subtitle = "Try a different search or filter"
                     )

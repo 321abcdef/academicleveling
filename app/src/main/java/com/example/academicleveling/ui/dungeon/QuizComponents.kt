@@ -63,11 +63,12 @@ fun QuizCard(
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 InfoChip(quiz.subject)
                 InfoChip(quiz.gradeLevel)
-                InfoChip("${quiz.questions.size} Qs")
+                val qCount = if (quiz.questions.isNotEmpty()) quiz.questions.size else quiz.questionsCount
+                InfoChip("$qCount Qs")
                 InfoChip(quizTypeLabel(quiz.quizType), Accent.copy(.12f), Accent)
                 when (quiz.timerMode) {
-                    QuizTimerMode.WHOLE_QUIZ   -> InfoChip("${quiz.timerSeconds}s total", Gold.copy(.15f), Gold)
-                    QuizTimerMode.PER_QUESTION -> InfoChip("${quiz.timerSeconds}s/Q",     Gold.copy(.15f), Gold)
+                    QuizTimerMode.WHOLE_QUIZ   -> if (quiz.timerSeconds > 0) InfoChip("${quiz.timerSeconds}s total", Gold.copy(.15f), Gold)
+                    QuizTimerMode.PER_QUESTION -> if (quiz.timerSeconds > 0) InfoChip("${quiz.timerSeconds}s/Q",     Gold.copy(.15f), Gold)
                     QuizTimerMode.NONE         -> {}
                 }
             }

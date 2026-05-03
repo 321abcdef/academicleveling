@@ -165,6 +165,58 @@ object AppState {
         )
     }
 
+    fun refreshCommunityQuizzes(
+        search: String? = null,
+        difficulty: String? = null,
+        gradeLevel: String? = null,
+        onComplete: (List<Quiz>) -> Unit = {}
+    ) {
+        ApiRepository.getQuizzes(
+            search = search,
+            difficulty = difficulty,
+            gradeLevel = gradeLevel,
+            onSuccess = { response ->
+                val quizzes = response.data.map { apiQuiz ->
+                    Quiz(
+                        id = apiQuiz.id,
+                        title = apiQuiz.title,
+                        creator = apiQuiz.user.name,
+                        creatorName = apiQuiz.user.name,
+                        questions = emptyList(),
+                        questionsCount = apiQuiz.questionsCount,
+                        exp = apiQuiz.questionsCount * 20,
+                        quizType = when(apiQuiz.type.lowercase().trim()) {
+                            "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                            "true_false"      -> QuizType.TRUE_FALSE
+                            "identification"  -> QuizType.IDENTIFICATION
+                            "mixed"           -> QuizType.MIX
+                            else              -> QuizType.MIX
+                        },
+                        timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                            "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                            "question" -> QuizTimerMode.PER_QUESTION
+                            else -> QuizTimerMode.NONE
+                        },
+                        subject = apiQuiz.subject,
+                        gradeLevel = apiQuiz.gradeLevel,
+                        difficulty = when(apiQuiz.difficulty.lowercase()) {
+                            "easy" -> Difficulty.EASY
+                            "hard" -> Difficulty.HARD
+                            else -> Difficulty.MEDIUM
+                        },
+                        code = apiQuiz.quizCode,
+                        dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+                        shuffleQuestions = apiQuiz.isQuestionShuffled,
+                        shuffleOptions = apiQuiz.isChoicesShuffled
+                    )
+                }
+                communityQuizzes = quizzes
+                onComplete(quizzes)
+            },
+            onError = { onComplete(emptyList()) }
+        )
+    }
+
     fun updateProfile(newName: String, newEmail: String) {
         if (newName.isNotBlank()) name = newName
         if (newEmail.isNotBlank()) email = newEmail
@@ -293,10 +345,9 @@ object AppState {
         quizzesCompleted++
         addCoins(score * 5)
         completeQuest(2)
-        val isMine = myQuizzes.any { it.id == quiz.id }
-        if (!isMine) ApiRepository.notifyQuizComplete(quiz.id)
         checkAchievements(); save()
     }
+
 
     // ══════════════════════════════════════════════════════════════════════
     //  STUDY SESSIONS

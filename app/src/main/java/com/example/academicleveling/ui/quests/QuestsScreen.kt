@@ -403,7 +403,7 @@ private fun HomeQuickActions(
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionButton(Modifier.weight(1f), Icons.Default.History, "History", Gold, onOpenHistory)
+            ActionButton(Modifier.weight(1f), Icons.Default.History, "Quiz History", Gold, onOpenHistory)
             ActionButton(Modifier.weight(1f), Icons.Default.Storefront, "Shop", Blue, onOpenShop)
             ActionButton(Modifier.weight(1f), Icons.Default.Person, "Profile", Purple, onOpenProfile)
         }

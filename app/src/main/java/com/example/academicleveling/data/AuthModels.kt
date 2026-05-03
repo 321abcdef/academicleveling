@@ -98,3 +98,51 @@ data class ApiErrorResponse(
     val message: String,
     val errors: Map<String, List<String>>? = null
 )
+
+// ── Quizzes ─────────────────────────────────────────────────────────────
+
+data class QuizCreator(
+    val id: Int,
+    val name: String
+)
+
+data class QuizApiData(
+    val id: Int,
+    val user: QuizCreator,
+    @SerializedName("quiz_code") val quizCode: String,
+    val title: String,
+    val description: String,
+    val subject: String,
+    @SerializedName("grade_level") val gradeLevel: String,
+    val type: String,
+    val difficulty: String,
+    @SerializedName("timer_mode") val timerMode: String,
+    @SerializedName("is_question_shuffled") val isQuestionShuffled: Boolean,
+    @SerializedName("is_choices_shuffled") val isChoicesShuffled: Boolean,
+    @SerializedName("is_public") val isPublic: Boolean,
+    @SerializedName("questions_count") val questionsCount: Int,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String
+)
+
+data class PaginationLink(
+    val url: String?,
+    val label: String,
+    val active: Boolean
+)
+
+data class PaginationMeta(
+    @SerializedName("current_page") val currentPage: Int,
+    @SerializedName("last_page") val lastPage: Int,
+    val from: Int?,
+    val to: Int?,
+    val total: Int,
+    val path: String,
+    @SerializedName("per_page") val perPage: Int,
+    val links: List<PaginationLink>
+)
+
+data class QuizListResponse(
+    val data: List<QuizApiData>,
+    val meta: PaginationMeta? = null
+)

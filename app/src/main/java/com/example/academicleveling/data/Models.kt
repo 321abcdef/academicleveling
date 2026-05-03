@@ -45,6 +45,7 @@ data class Quiz(
     val creator:          String,
     val creatorName:      String        = "",
     val questions:        List<QuizQuestion>,
+    val questionsCount:   Int           = 0,
     val exp:              Int           = 50,
     val quizType:         QuizType      = QuizType.MULTIPLE_CHOICE,
     val timerMode:        QuizTimerMode = QuizTimerMode.NONE,
@@ -237,6 +238,7 @@ fun buildCommunityQuizzes(): List<Quiz> = (9001..9033).map { id ->
         difficulty       = o.diff,
         timerMode        = o.timerMode,
         timerSeconds     = o.timerSecs,
+        questionsCount   = qList.size,
         exp              = qList.size * 20,
         dateCreated      = CommunityData.getDateFor(id),
         quizType         = QuizType.MIX,
@@ -252,7 +254,7 @@ private fun createQuiz(
     return Quiz(
         id = id, title = title, creator = creator, creatorName = creator, code = code,
         subject = subject, gradeLevel = grade, difficulty = diff, timerMode = tMode,
-        timerSeconds = tSecs, exp = qList.size * 20,
+        timerSeconds = tSecs, questionsCount = qList.size, exp = qList.size * 20,
         dateCreated = CommunityData.getDateFor(id), // ITO YUNG UNIQUE DATE
         quizType = QuizType.MIX, questions = qList
     )
