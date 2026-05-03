@@ -71,6 +71,10 @@ object AppState {
     var sessionHistory: List<SessionEntry>     by mutableStateOf(emptyList())
     var quizHistory:    List<QuizHistoryEntry> by mutableStateOf(emptyList())
 
+    // ── Bonus claim tracking ──────────────────────────────────────────────
+    var dailyBonusClaimedDate  by mutableStateOf("")
+    var weeklyBonusClaimedDate by mutableStateOf("")
+
     // ── Quests ────────────────────────────────────────────────────────────
     val defaultDailyQuests get() = listOf(
         Quest(1, "STUDY FOR 30 MINUTES",     10),
@@ -270,16 +274,22 @@ object AppState {
 
     fun claimBonus(): Int {
         if (!quests.all { it.done }) return 0
+        val today = todayDateKey()
+        if (dailyBonusClaimedDate == today) return 0
+        dailyBonusClaimedDate = today
         addXP(50); addCoins(20); saveAccount(); return 50
     }
 
     fun claimWeeklyBonus(): Int {
         if (!weeklyQuests.all { it.done }) return 0
+        val thisWeek = currentWeekKey()
+        if (weeklyBonusClaimedDate == thisWeek) return 0
+        weeklyBonusClaimedDate = thisWeek
         addXP(100); addCoins(50); saveAccount(); return 100
     }
 
-    fun isDailyBonusClaimed():  Boolean = false
-    fun isWeeklyBonusClaimed(): Boolean = false
+    fun isDailyBonusClaimed():  Boolean = dailyBonusClaimedDate  == todayDateKey()
+    fun isWeeklyBonusClaimed(): Boolean = weeklyBonusClaimedDate == currentWeekKey()
     fun questsDone() = quests.count { it.done }
     fun weeklyDone() = weeklyQuests.count { it.done }
 
@@ -398,6 +408,8 @@ object AppState {
         coins = 0; streak = 0; totalMins = 0; quizzesCompleted = 0
         streakAtRisk = false; showLevelUp = false; newLevelVal = 1
         timeWarpCount = 0; secondChanceCount = 0; hintCount = 0; streakBandaidCount = 0
+        dailyBonusClaimedDate  = ""
+        weeklyBonusClaimedDate = ""
         inventory    = DEFAULT_INVENTORY
         equipment    = DEFAULT_EQUIPMENT
         achievements = ALL_ACHIEVEMENTS
@@ -429,6 +441,8 @@ object AppState {
             putString("achievements", gson.toJson(achievements))
             putString("sessions",     gson.toJson(sessionHistory))
             putString("quizHistory",  gson.toJson(quizHistory))
+            putString("dailyBonusClaimed",  dailyBonusClaimedDate)
+            putString("weeklyBonusClaimed", weeklyBonusClaimedDate)
         }.apply()
     }
 
@@ -456,6 +470,9 @@ object AppState {
         streakBandaidCount = accountPrefs.getInt("sbc",   0)
         maxXP = xpForNext(level); rank = getRank(level)
 
+        dailyBonusClaimedDate  = accountPrefs.getString("dailyBonusClaimed",  "") ?: ""
+        weeklyBonusClaimedDate = accountPrefs.getString("weeklyBonusClaimed", "") ?: ""
+
         val questType   = object : TypeToken<List<Quest>>()            {}.type
         val quizType    = object : TypeToken<List<Quiz>>()             {}.type
         val achType     = object : TypeToken<List<Achievement>>()      {}.type
@@ -474,6 +491,7 @@ object AppState {
         val lastDailyReset = accountPrefs.getString("lastDailyReset", "") ?: ""
         if (lastDailyReset != today) {
             quests = quests.map { it.copy(done = false) }
+            dailyBonusClaimedDate = ""
             accountPrefs.edit().putString("lastDailyReset", today).apply()
         }
 
@@ -482,6 +500,7 @@ object AppState {
         val lastWeeklyReset = accountPrefs.getString("lastWeeklyReset", "") ?: ""
         if (lastWeeklyReset != thisWeek) {
             weeklyQuests = weeklyQuests.map { it.copy(done = false) }
+            weeklyBonusClaimedDate = ""
             accountPrefs.edit().putString("lastWeeklyReset", thisWeek).apply()
         }
     }
