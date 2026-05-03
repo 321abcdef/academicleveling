@@ -184,7 +184,38 @@ data class QuizFullData(
 )
 
 data class QuizFullResponse(
-    val data: QuizFullData
+    val data: QuizFullData,
+    val message: String? = null
+)
+
+// ── Create Quiz Request ──────────────────────────────────────────────────
+
+data class CreateChoiceRequest(
+    @SerializedName("choice_text") val choiceText: String,
+    @SerializedName("is_correct") val isCorrect: Boolean
+)
+
+data class CreateQuestionRequest(
+    @SerializedName("question_text") val questionText: String,
+    val type: String,
+    val points: Int,
+    val order: Int,
+    @SerializedName("correct_answer") val correctAnswer: String? = null,
+    val choices: List<CreateChoiceRequest>? = null
+)
+
+data class CreateQuizRequest(
+    val title: String,
+    val description: String,
+    val subject: String,
+    @SerializedName("grade_level") val gradeLevel: String,
+    val type: String,
+    val difficulty: String,
+    @SerializedName("timer_mode") val timerMode: String,
+    @SerializedName("is_question_shuffled") val isQuestionShuffled: Boolean,
+    @SerializedName("is_choices_shuffled") val isChoicesShuffled: Boolean,
+    @SerializedName("is_public") val isPublic: Boolean = true,
+    val questions: List<CreateQuestionRequest>
 )
 
 // ── Quiz Attempts ───────────────────────────────────────────────────────

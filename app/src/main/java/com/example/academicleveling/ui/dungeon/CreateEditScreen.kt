@@ -39,6 +39,7 @@ fun CreateEditScreen(
     var step by remember { mutableStateOf(if (isEdit) CreateStep.QUESTIONS else CreateStep.INFO) }
 
     var title            by remember { mutableStateOf(existing?.title      ?: "") }
+    var description      by remember { mutableStateOf("") } // Added description field
     var subject          by remember { mutableStateOf(existing?.subject    ?: "") }
     var gradeLevel       by remember { mutableStateOf(existing?.gradeLevel ?: "All") }
     var difficulty       by remember { mutableStateOf(existing?.difficulty ?: Difficulty.MEDIUM) }
@@ -47,39 +48,94 @@ fun CreateEditScreen(
     var timerSecs        by remember { mutableStateOf((existing?.timerSeconds ?: 30).toString()) }
     var shuffleQuestions by remember { mutableStateOf(existing?.shuffleQuestions ?: false) }
     var shuffleOptions   by remember { mutableStateOf(existing?.shuffleOptions   ?: false) }
+    var isPublic         by remember { mutableStateOf(true) }
     var titleError       by remember { mutableStateOf(false) }
 
     var questions     by remember { mutableStateOf(existing?.questions ?: listOf<QuizQuestion>()) }
     var editingQIndex by remember { mutableStateOf<Int?>(null) }
     var formError     by remember { mutableStateOf("") }
+    var isSaving      by remember { mutableStateOf(false) }
 
     var gradeOpen by remember { mutableStateOf(false) }
     var diffOpen  by remember { mutableStateOf(false) }
     var typeOpen  by remember { mutableStateOf(false) }
     var timerOpen by remember { mutableStateOf(false) }
 
-    fun buildQuiz(): Quiz? {
-        if (title.isBlank())     { formError = "Quiz title is required";    return null }
+    fun buildCreateRequest(): CreateQuizRequest? {
+        if (title.isBlank()) { formError = "Quiz title is required"; return null }
         if (questions.isEmpty()) { formError = "Add at least one question"; return null }
         formError = ""
+
+        val apiQuestions = questions.mapIndexed { idx, q ->
+            CreateQuestionRequest(
+                questionText = q.q,
+                type = when (q.type) {
+                    QuizType.MULTIPLE_CHOICE -> "multiple_choice"
+                    QuizType.TRUE_FALSE -> "true_false"
+                    QuizType.IDENTIFICATION -> "identification"
+                    QuizType.MIX -> "multiple_choice"
+                },
+                points = 1,
+                order = idx + 1,
+                correctAnswer = if (q.type == QuizType.IDENTIFICATION) q.identAnswer else null,
+                choices = if (q.type != QuizType.IDENTIFICATION) {
+                    if (q.type == QuizType.TRUE_FALSE) {
+                        listOf(
+                            CreateChoiceRequest("True", q.correct == 0),
+                            CreateChoiceRequest("False", q.correct == 1)
+                        )
+                    } else {
+                        q.opts.filter { it.isNotBlank() }.mapIndexed { i, opt ->
+                            CreateChoiceRequest(opt, q.correct == i)
+                        }
+                    }
+                } else null
+            )
+        }
+
+        return CreateQuizRequest(
+            title = title.trim(),
+            description = description.ifBlank { "Test your knowledge" },
+            subject = subject.trim().ifBlank { "General" },
+            gradeLevel = gradeLevel.lowercase().replace(" ", ""),
+            type = when (quizType) {
+                QuizType.MULTIPLE_CHOICE -> "multiple_choice"
+                QuizType.TRUE_FALSE -> "true_false"
+                QuizType.IDENTIFICATION -> "identification"
+                QuizType.MIX -> "mixed"
+            },
+            difficulty = difficulty.name.lowercase(),
+            timerMode = when (timerMode) {
+                QuizTimerMode.WHOLE_QUIZ -> "quiz"
+                QuizTimerMode.PER_QUESTION -> "question"
+                else -> "none"
+            },
+            isQuestionShuffled = shuffleQuestions,
+            isChoicesShuffled = shuffleOptions,
+            isPublic = isPublic,
+            questions = apiQuestions
+        )
+    }
+
+    fun buildQuiz(apiData: QuizFullData): Quiz {
         return Quiz(
-            id               = existing?.id ?: System.currentTimeMillis().toInt(),
-            title            = title.trim(),
-            creator          = AppState.name.ifBlank { "Player" },
-            creatorName      = AppState.name.ifBlank { "Player" },
-            questions        = questions,
-            questionsCount   = questions.size,
-            exp              = questions.size * 20,
-            quizType         = quizType,
-            timerMode        = timerMode,
-            timerSeconds     = if (timerMode != QuizTimerMode.NONE) (timerSecs.toIntOrNull() ?: 30) else 0,
-            subject          = subject.trim().ifBlank { "General" },
-            gradeLevel       = gradeLevel,
-            difficulty       = difficulty,
-            code             = existing?.code ?: generateCode(),
-            dateCreated      = existing?.dateCreated ?: todayString(),
-            shuffleQuestions = shuffleQuestions,
-            shuffleOptions   = shuffleOptions
+            id = apiData.id,
+            title = apiData.title,
+            creator = apiData.user.name,
+            creatorName = apiData.user.name,
+            questions = questions,
+            questionsCount = apiData.questionsCount,
+            exp = apiData.questionsCount * 20,
+            quizType = quizType,
+            timerMode = timerMode,
+            timerSeconds = if (timerMode != QuizTimerMode.NONE) (timerSecs.toIntOrNull() ?: 30) else 0,
+            subject = apiData.subject,
+            gradeLevel = apiData.gradeLevel,
+            difficulty = difficulty,
+            code = apiData.quizCode,
+            dateCreated = apiData.createdAt.split("T").firstOrNull() ?: "",
+            shuffleQuestions = apiData.isQuestionShuffled,
+            shuffleOptions = apiData.isChoicesShuffled
         )
     }
 
@@ -150,6 +206,17 @@ fun CreateEditScreen(
                             label         = { Text("Quiz Title *", fontSize = 12.sp) },
                             isError       = titleError,
                             singleLine    = true,
+                            shape         = RoundedCornerShape(9.dp),
+                            colors        = quizFieldColors()
+                        )
+
+                        OutlinedTextField(
+                            value         = description,
+                            onValueChange = { description = it },
+                            modifier      = Modifier.fillMaxWidth(),
+                            label         = { Text("Description", fontSize = 12.sp) },
+                            singleLine    = false,
+                            minLines      = 2,
                             shape         = RoundedCornerShape(9.dp),
                             colors        = quizFieldColors()
                         )
@@ -444,24 +511,71 @@ fun CreateEditScreen(
                         Modifier.fillMaxWidth(), color = BgCardDark, textColor = TextPrimary)
                 }
 
-                // Save button — replaced 💾 emoji with Save icon inside Row
+                // Save button
                 Box(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                        .background(Teal)
-                        .clickable {
-                            val q = buildQuiz()
-                            if (q != null) { SoundManager.claim(); onSave(q) }
+                        .background(if (isSaving) Teal.copy(0.5f) else Teal)
+                        .clickable(enabled = !isSaving) {
+                            if (isEdit) {
+                                // For now, we still use local save for edits if no PUT endpoint yet
+                                // or we can just treat it as a new creation if requested.
+                                // The user only asked for POST /api/quizzes.
+                                // buildQuiz is not strictly needed if we just call onSave with a stub
+                                // but let's just use the legacy local build for Edit.
+                                // Actually, let's just implement Create for now.
+                                val q = Quiz(
+                                    id               = existing?.id ?: 0,
+                                    title            = title.trim(),
+                                    creator          = AppState.name,
+                                    questions        = questions,
+                                    questionsCount   = questions.size,
+                                    exp              = questions.size * 20,
+                                    quizType         = quizType,
+                                    timerMode        = timerMode,
+                                    timerSeconds     = if (timerMode != QuizTimerMode.NONE) (timerSecs.toIntOrNull() ?: 30) else 0,
+                                    subject          = subject.trim().ifBlank { "General" },
+                                    gradeLevel       = gradeLevel,
+                                    difficulty       = difficulty,
+                                    code             = existing?.code ?: "",
+                                    dateCreated      = existing?.dateCreated ?: todayString(),
+                                    shuffleQuestions = shuffleQuestions,
+                                    shuffleOptions   = shuffleOptions
+                                )
+                                onSave(q)
+                            } else {
+                                val req = buildCreateRequest()
+                                if (req != null) {
+                                    isSaving = true
+                                    ApiRepository.createQuiz(
+                                        request = req,
+                                        onSuccess = { resp ->
+                                            isSaving = false
+                                            SoundManager.claim()
+                                            onSave(buildQuiz(resp.data))
+                                        },
+                                        onError = { err ->
+                                            isSaving = false
+                                            formError = err
+                                            SoundManager.error()
+                                        }
+                                    )
+                                }
+                            }
                         }
                         .padding(vertical = 13.dp),
                     Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.Save, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Text(
-                            if (isEdit) "SAVE CHANGES" else "SAVE QUIZ  (+30 XP)",
-                            fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.White
-                        )
+                    if (isSaving) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Save, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Text(
+                                if (isEdit) "SAVE CHANGES" else "SAVE QUIZ  (+30 XP)",
+                                fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.White
+                            )
+                        }
                     }
                 }
             }
