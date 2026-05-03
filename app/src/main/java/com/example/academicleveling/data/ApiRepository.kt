@@ -133,7 +133,7 @@ object ApiRepository {
         onSuccess: (LoginResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        val request = LoginRequest(email, password)
+        val request = LoginRequest(email.trim(), password.trim())
         api.login(request).enqueue(object : Callback<LoginResponse> {
             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                 if (response.isSuccessful) {
@@ -170,7 +170,7 @@ object ApiRepository {
         onSuccess: (RegisterResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        val request = RegisterRequest(username, email, password, passwordConfirmation)
+        val request = RegisterRequest(username.trim(), email.trim(), password.trim(), passwordConfirmation.trim())
         api.register(request).enqueue(object : Callback<RegisterResponse> {
             override fun onResponse(call: Call<RegisterResponse>, response: Response<RegisterResponse>) {
                 if (response.isSuccessful) {
@@ -279,7 +279,7 @@ object ApiRepository {
         onSuccess: (UpdateProfileResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        val request = UpdateProfileRequest(name, email)
+        val request = UpdateProfileRequest(name.trim(), email.trim())
         api.updateProfile(request).enqueue(object : Callback<UpdateProfileResponse> {
             override fun onResponse(call: Call<UpdateProfileResponse>, response: Response<UpdateProfileResponse>) {
                 if (response.isSuccessful) {
@@ -335,7 +335,7 @@ object ApiRepository {
         onSuccess: (QuizListResponse) -> Unit,
         onError: (String) -> Unit
     ) {
-        api.getQuizzes(search, difficulty, gradeLevel, page).enqueue(object : Callback<QuizListResponse> {
+        api.getQuizzes(search?.trim(), difficulty, gradeLevel, page).enqueue(object : Callback<QuizListResponse> {
             override fun onResponse(call: Call<QuizListResponse>, response: Response<QuizListResponse>) {
                 if (response.isSuccessful) {
                     response.body()?.let { onSuccess(it) } ?: onError("Empty response body")
@@ -480,7 +480,7 @@ object ApiRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val request = ChangePasswordRequest(current, newPw, confirmPw)
+        val request = ChangePasswordRequest(current.trim(), newPw.trim(), confirmPw.trim())
         api.changePassword(request).enqueue(object : Callback<ChangePasswordResponse> {
             override fun onResponse(call: Call<ChangePasswordResponse>, response: Response<ChangePasswordResponse>) {
                 if (response.isSuccessful) {
@@ -510,7 +510,7 @@ object ApiRepository {
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        val request = ForgotPasswordRequest(email)
+        val request = ForgotPasswordRequest(email.trim())
         api.forgotPassword(request).enqueue(object : Callback<ForgotPasswordResponse> {
             override fun onResponse(call: Call<ForgotPasswordResponse>, response: Response<ForgotPasswordResponse>) {
                 if (response.isSuccessful) {
@@ -537,7 +537,12 @@ object ApiRepository {
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        api.resetPassword(request).enqueue(object : Callback<ResetPasswordResponse> {
+        val trimmedRequest = request.copy(
+            email = request.email.trim(),
+            password = request.password.trim(),
+            passwordConfirmation = request.passwordConfirmation.trim()
+        )
+        api.resetPassword(trimmedRequest).enqueue(object : Callback<ResetPasswordResponse> {
             override fun onResponse(call: Call<ResetPasswordResponse>, response: Response<ResetPasswordResponse>) {
                 if (response.isSuccessful) {
                     onSuccess(response.body()?.message ?: "Password reset successful")

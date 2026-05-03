@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,12 +102,23 @@ fun LoginScreen(onLogin: () -> Unit, onSignup: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("Email")
-                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Value")
+                AuthTextField(
+                    value = email,
+                    onValueChange = { email = it; errorMessage = null },
+                    placeholder = "Email Address",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
 
                 Spacer(Modifier.height(16.dp))
 
                 AuthLabel("Password")
-                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+                AuthTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMessage = null },
+                    placeholder = "Password",
+                    isPassword = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
 
                 if (errorMessage != null) {
                     Text(
@@ -200,16 +213,37 @@ fun SignupScreen(onSignup: () -> Unit, onLogin: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("Username")
-                AuthTextField(value = username, onValueChange = { username = it; errorMessage = null }, placeholder = "Value")
+                AuthTextField(
+                    value = username,
+                    onValueChange = { username = it; errorMessage = null },
+                    placeholder = "Choose a username"
+                )
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Email")
-                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Value")
+                AuthTextField(
+                    value = email,
+                    onValueChange = { email = it; errorMessage = null },
+                    placeholder = "Email Address",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Password")
-                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+                AuthTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMessage = null },
+                    placeholder = "Password",
+                    isPassword = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Confirm Password")
-                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+                AuthTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it; errorMessage = null },
+                    placeholder = "Confirm password",
+                    isPassword = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
 
                 if (errorMessage != null) {
                     Text(
@@ -360,10 +394,22 @@ fun ResetPasswordScreen(token: String, email: String, onSuccess: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("New Password")
-                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "New Password", isPassword = true)
+                AuthTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMessage = null },
+                    placeholder = "New Password",
+                    isPassword = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
                 Spacer(Modifier.height(16.dp))
                 AuthLabel("Confirm New Password")
-                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it; errorMessage = null }, placeholder = "Confirm", isPassword = true)
+                AuthTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it; errorMessage = null },
+                    placeholder = "Confirm",
+                    isPassword = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
 
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
@@ -439,7 +485,8 @@ fun AuthTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    isPassword: Boolean = false
+    isPassword: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
         value = value,
@@ -456,6 +503,7 @@ fun AuthTextField(
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White
         ),
-        singleLine = true
+        singleLine = true,
+        keyboardOptions = keyboardOptions
     )
 }
