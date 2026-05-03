@@ -405,6 +405,56 @@ object AppState {
     fun editQuiz(q: Quiz)   { myQuizzes = myQuizzes.map { if (it.id == q.id) q else it }; save() }
     fun deleteQuiz(id: Int) { myQuizzes = myQuizzes.filter { it.id != id }; save() }
 
+    fun refreshMyQuizzes(onComplete: (List<Quiz>) -> Unit = {}) {
+        ApiRepository.getMyQuizzes(
+            onSuccess = { response ->
+                val quizzes = response.data.map { apiQuiz ->
+                    Quiz(
+                        id = apiQuiz.id,
+                        title = apiQuiz.title,
+                        creator = apiQuiz.user.name,
+                        creatorName = apiQuiz.user.name,
+                        questions = emptyList(),
+                        questionsCount = apiQuiz.questionsCount,
+                        exp = apiQuiz.questionsCount * 20,
+                        quizType = when(apiQuiz.type.lowercase().trim()) {
+                            "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                            "true_false"      -> QuizType.TRUE_FALSE
+                            "identification"  -> QuizType.IDENTIFICATION
+                            "mixed"           -> QuizType.MIX
+                            else              -> QuizType.MIX
+                        },
+                        timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                            "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                            "question" -> QuizTimerMode.PER_QUESTION
+                            else -> QuizTimerMode.NONE
+                        },
+                        timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                            "quiz" -> apiQuiz.questionsCount * 30
+                            "question" -> 30
+                            else -> 0
+                        },
+                        subject = apiQuiz.subject,
+                        gradeLevel = apiQuiz.gradeLevel,
+                        difficulty = when(apiQuiz.difficulty.lowercase()) {
+                            "easy" -> Difficulty.EASY
+                            "hard" -> Difficulty.HARD
+                            else -> Difficulty.MEDIUM
+                        },
+                        code = apiQuiz.quizCode,
+                        dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+                        shuffleQuestions = apiQuiz.isQuestionShuffled,
+                        shuffleOptions = apiQuiz.isChoicesShuffled
+                    )
+                }
+                myQuizzes = quizzes
+                save()
+                onComplete(quizzes)
+            },
+            onError = { onComplete(emptyList()) }
+        )
+    }
+
     fun findByCode(code: String): Quiz? =
         (myQuizzes + communityQuizzes).firstOrNull {
             it.code.equals(code.trim(), ignoreCase = true)

@@ -37,6 +37,14 @@ fun MyQuizzesScreen(
     onDelete: (Quiz) -> Unit
 ) {
     var deleteTarget by remember { mutableStateOf<Quiz?>(null) }
+    var isLoading    by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        AppState.refreshMyQuizzes {
+            isLoading = false
+        }
+    }
 
     // Confirmation dialog
     deleteTarget?.let { quiz ->
@@ -114,8 +122,12 @@ fun MyQuizzesScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TealButton("+ CREATE NEW QUIZ", onCreate, Modifier.fillMaxWidth())
-                if (AppState.myQuizzes.isEmpty()) {
 
+                if (isLoading) {
+                    Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                        CircularProgressIndicator(color = Teal)
+                    }
+                } else if (AppState.myQuizzes.isEmpty()) {
                     EmptyState(
                         icon     = Icons.Default.Quiz,
                         tint     = Teal,
@@ -123,15 +135,23 @@ fun MyQuizzesScreen(
                         subtitle = "Tap Create New Quiz to get started"
                     )
                 } else {
-                    AppState.myQuizzes.sortedByDescending { it.id }.forEach { quiz ->
-                        QuizCard(quiz = quiz, showCode = true) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                IconActionChip(Icons.Default.PlayArrow, "PLAY",   SuccessGreen) { onPlay(quiz) }
-                                IconActionChip(Icons.Default.Edit,      "EDIT",   Blue)         { onEdit(quiz) }
-                                IconActionChip(Icons.Default.Delete,    "DELETE", DangerRed)    { deleteTarget = quiz }
+                AppState.myQuizzes.sortedByDescending { it.id }.forEach { quiz ->
+                    QuizCard(quiz = quiz, showCode = true) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            IconActionChip(Icons.Default.PlayArrow, "PLAY", SuccessGreen) {
+                                AppState.loadQuizFullInfo(quiz.id) { fullQuiz ->
+                                    if (fullQuiz != null) onPlay(fullQuiz)
+                                }
                             }
+                            IconActionChip(Icons.Default.Edit, "EDIT", Blue) {
+                                AppState.loadQuizFullInfo(quiz.id) { fullQuiz ->
+                                    if (fullQuiz != null) onEdit(fullQuiz)
+                                }
+                            }
+                            IconActionChip(Icons.Default.Delete, "DELETE", DangerRed) { deleteTarget = quiz }
                         }
                     }
+                }
                 }
                 Spacer(Modifier.height(80.dp))
             }

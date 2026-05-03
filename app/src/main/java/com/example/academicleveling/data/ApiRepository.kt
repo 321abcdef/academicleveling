@@ -53,6 +53,9 @@ interface AcademicApi {
     @GET("quizzes/{id}")
     fun getQuiz(@Path("id") id: Int): Call<QuizFullResponse>
 
+    @GET("quizzes/mine")
+    fun getMyQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
+
     @POST("quizzes/{id}/attempts")
     fun startAttempt(@Path("id") id: Int): Call<StartAttemptResponse>
 
@@ -335,6 +338,25 @@ object ApiRepository {
                 }
             }
 
+            override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getMyQuizzes(
+        page: Int? = null,
+        onSuccess: (QuizListResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getMyQuizzes(page).enqueue(object : Callback<QuizListResponse> {
+            override fun onResponse(call: Call<QuizListResponse>, response: Response<QuizListResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to fetch your quizzes: ${response.code()}")
+                }
+            }
             override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
