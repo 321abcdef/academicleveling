@@ -14,7 +14,7 @@ object AppState {
     private val gson = Gson()
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("academic_leveling_v7", Context.MODE_PRIVATE)
+        prefs = context.getSharedPreferences("academic_leveling_v8", Context.MODE_PRIVATE)
         load()
         if (loggedIn) refreshUserData()
     }
@@ -113,6 +113,9 @@ object AppState {
         totalXP = response.data.totalExp ?: 0
         loggedIn = true
         save()
+
+        // Immediately fetch stats
+        refreshUserStats()
     }
 
     fun registerWithApi(response: RegisterResponse) {
@@ -127,6 +130,9 @@ object AppState {
         totalXP = response.data.totalExp ?: 0
         loggedIn = true
         save()
+
+        // Immediately fetch stats
+        refreshUserStats()
     }
 
     fun refreshUserData(onComplete: () -> Unit = {}) {
