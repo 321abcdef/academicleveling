@@ -141,6 +141,24 @@ object AppState {
                 coins = response.data.coins
                 totalXP = response.data.totalExp ?: 0
                 save()
+                
+                // Fetch stats too
+                refreshUserStats(onComplete)
+            },
+            onError = { 
+                refreshUserStats(onComplete)
+            }
+        )
+    }
+
+    fun refreshUserStats(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getUserStats(
+            onSuccess = { response ->
+                totalMins = response.totalStudyDurationMinutes
+                quizzesCompleted = response.totalQuizzesCompleted
+                streak = response.streak
+                save()
                 onComplete()
             },
             onError = { onComplete() }

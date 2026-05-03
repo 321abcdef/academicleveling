@@ -122,7 +122,6 @@ fun ProfileScreen(onLogout: () -> Unit) {
                         )
                         Spacer(Modifier.height(8.dp))
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                            StatPill("Total XP",   "${AppState.totalXP}",          Teal)
                             StatPill("Streak",     "${AppState.streak}",            Gold)
                             StatPill("Study Mins", "${AppState.totalMins}",         Blue)
                             StatPill("Quizzes",    "${AppState.quizzesCompleted}",  Accent)

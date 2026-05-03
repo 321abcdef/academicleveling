@@ -36,6 +36,9 @@ interface AcademicApi {
 
     @PUT("user")
     fun updateProfile(@Body request: UpdateProfileRequest): Call<UpdateProfileResponse>
+
+    @GET("user/stats")
+    fun getUserStats(): Call<UserStatsResponse>
 }
 
 object ApiRepository {
@@ -265,6 +268,24 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<UpdateProfileResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getUserStats(
+        onSuccess: (UserStatsResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getUserStats().enqueue(object : Callback<UserStatsResponse> {
+            override fun onResponse(call: Call<UserStatsResponse>, response: Response<UserStatsResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to fetch stats: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<UserStatsResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

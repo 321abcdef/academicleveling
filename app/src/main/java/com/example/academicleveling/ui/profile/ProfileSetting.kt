@@ -221,7 +221,6 @@ fun ProfileSettingsScreen(onBack: () -> Unit) {
                     InfoRow("Level", "${AppState.level}")
                     InfoRow("Rank",  "${AppState.rank}")
                     InfoRow("Grade", AppState.grade?.display ?: "Not set")
-                    InfoRow("Total XP", "${AppState.totalXP}")
                 }
             }
 

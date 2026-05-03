@@ -46,6 +46,12 @@ data class UpdateProfileResponse(
     val message: String
 )
 
+data class UserStatsResponse(
+    @SerializedName("total_study_duration_minutes") val totalStudyDurationMinutes: Int,
+    @SerializedName("total_quizzes_completed") val totalQuizzesCompleted: Int,
+    val streak: Int
+)
+
 data class ChangePasswordRequest(
     @SerializedName("current_password") val currentPassword: String,
     @SerializedName("new_password") val newPassword: String,
