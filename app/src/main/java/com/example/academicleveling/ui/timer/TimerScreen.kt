@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.academicleveling.data.AppState
+import com.example.academicleveling.data.isoDate
+import com.example.academicleveling.data.formatDate
 import com.example.academicleveling.ui.shared.*
 import com.example.academicleveling.ui.theme.*
 
@@ -34,7 +36,6 @@ fun TimerScreen() {
     val remaining     = TimerState.remaining
     val running       = TimerState.running
     val sessionsToday = TimerState.sessionsToday
-    val xpThisSession = TimerState.xpThisSession
     val showDone      = TimerState.showDone
     val progress      = 1f - (remaining.toFloat() / totalSecs.coerceAtLeast(1)).coerceIn(0f, 1f)
 
@@ -46,6 +47,9 @@ fun TimerScreen() {
     )
 
     SpaceBackground {
+        LaunchedEffect(Unit) {
+            AppState.refreshSessionHistory()
+        }
         Column(Modifier.fillMaxSize()) {
             TopBar()
 
@@ -249,10 +253,13 @@ fun TimerScreen() {
                         SectionLabel("CURRENT SESSION")
                         Spacer(Modifier.height(10.dp))
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                            SessionTile(Icons.Default.Timer,                "${totalSecs / 60} min", "duration",  Teal)
-                            SessionTile(Icons.Default.MenuBook,             "$sessionsToday",        "completed", Accent)
-                            SessionTile(Icons.Default.Bolt,                 "+$xpThisSession XP",   "earned",    Gold)
-                            SessionTile(Icons.Default.Paid,                 "+${totalSecs / 60}",   "coins",     Gold)
+                            val durationMins = totalSecs / 60
+                            val estExp = durationMins // duration / 60
+                            val estCoins = totalSecs / 120 // duration / 120
+                            
+                            SessionTile(Icons.Default.Timer,                "$durationMins min", "duration",  Teal)
+                            SessionTile(Icons.Default.Bolt,                 "+$estExp XP",      "earned",    Gold)
+                            SessionTile(Icons.Default.Paid,                 "+$estCoins",       "coins",     Gold)
                         }
                     }
                 }
@@ -267,21 +274,27 @@ fun TimerScreen() {
                     ) {
                         SectionLabel("HISTORY")
                         Spacer(Modifier.height(8.dp))
-                        val todayMins  = AppState.sessionHistory.firstOrNull()?.minutes ?: 0
-                        val weeklyMins = AppState.sessionHistory.take(7).sumOf { it.minutes }
+                        val todayStr = isoDate()
+                        val todayMins = AppState.sessionHistory
+                            .filter { it.date == todayStr }
+                            .sumOf { it.minutes }
+                        
+                        // Total minutes across all logged history
+                        val totalMinsHistory = AppState.sessionHistory.sumOf { it.minutes }
+                        
                         Text(
-                            "Today: $todayMins min  •  This week: $weeklyMins min",
+                            "Today: $todayMins min  •  Total History: $totalMinsHistory min",
                             fontSize = 12.sp, color = TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
                         HorizontalDivider(color = Color(0xFF2A2A3E))
                         Spacer(Modifier.height(8.dp))
-                        AppState.sessionHistory.take(5).forEach { s ->
+                        AppState.sessionHistory.forEach { s ->
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                 Arrangement.SpaceBetween, Alignment.CenterVertically
                             ) {
-                                Text(s.date,             fontSize = 11.sp, color = TextSecondary)
+                                Text(formatDate(s.date), fontSize = 11.sp, color = TextSecondary)
                                 Text("${s.minutes} min", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                                 Box(
                                     Modifier.clip(RoundedCornerShape(4.dp))

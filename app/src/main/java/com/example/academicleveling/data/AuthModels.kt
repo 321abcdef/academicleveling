@@ -218,6 +218,34 @@ data class CreateQuizRequest(
     val questions: List<CreateQuestionRequest>
 )
 
+// ── Study Sessions ───────────────────────────────────────────────────────
+
+data class CreateStudySessionRequest(
+    val duration: Int,
+    @SerializedName("session_at") val sessionAt: String
+)
+
+data class StudySessionRewards(
+    val exp: Int,
+    val coins: Int
+)
+
+data class StudySessionData(
+    val id: Int,
+    @SerializedName("session_at") val sessionAt: String,
+    val duration: Int,
+    val rewards: StudySessionRewards
+)
+
+data class CreateStudySessionResponse(
+    val data: StudySessionData,
+    val message: String
+)
+
+data class StudySessionListResponse(
+    val data: List<StudySessionData>
+)
+
 // ── Quiz Attempts ───────────────────────────────────────────────────────
 
 data class StartAttemptResponse(

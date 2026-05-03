@@ -72,6 +72,12 @@ interface AcademicApi {
     @POST("attempts/{id}/submit-all")
     fun submitAttempt(@Path("id") id: Int, @Body request: SubmitQuizRequest): Call<SubmitQuizResponse>
 
+    @POST("study-sessions")
+    fun createStudySession(@Body request: CreateStudySessionRequest): Call<CreateStudySessionResponse>
+
+    @GET("study-sessions")
+    fun getStudySessions(): Call<StudySessionListResponse>
+
     @GET("attempts")
     fun getAttempts(@Query("page") page: Int? = null): Call<AttemptListResponse>
 
@@ -611,6 +617,55 @@ object ApiRepository {
                 }
             }
             override fun onFailure(call: Call<SubmitQuizResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun createStudySession(
+        durationSeconds: Int,
+        onSuccess: (CreateStudySessionResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        // Format: 2026-04-27T14:35:00
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+        val now = sdf.format(java.util.Date())
+        val request = CreateStudySessionRequest(durationSeconds, now)
+
+        api.createStudySession(request).enqueue(object : Callback<CreateStudySessionResponse> {
+            override fun onResponse(call: Call<CreateStudySessionResponse>, response: Response<CreateStudySessionResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+            override fun onFailure(call: Call<CreateStudySessionResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getStudySessions(
+        onSuccess: (StudySessionListResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getStudySessions().enqueue(object : Callback<StudySessionListResponse> {
+            override fun onResponse(call: Call<StudySessionListResponse>, response: Response<StudySessionListResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<StudySessionListResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

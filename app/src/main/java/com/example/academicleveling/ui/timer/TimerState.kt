@@ -8,7 +8,7 @@ import kotlinx.coroutines.*
 
 // Only POMODORO (focus) gives XP/coins. Breaks are just breaks.
 enum class TimerMode(val label: String, val seconds: Int, val isFocus: Boolean) {
-    POMODORO   ("Pomodoro",    25 * 60, true),
+    POMODORO   ("Pomodoro",    1 * 60, true),
     SHORT_BREAK("Short Break",  5 * 60, false),
     LONG_BREAK ("Long Break",  15 * 60, false)
 }
@@ -58,15 +58,22 @@ object TimerState {
             }
             if (remaining == 0 && running) {
                 running = false
-                // Only reward focus sessions
-                if (mode.isFocus) {
-                    val mins   = totalSecs / 60
-                    val earned = mins * 2
-                    AppState.addStudySession(mins)
-                    sessionsToday++
-                    xpThisSession += earned
-                }
                 showDone = true
+                
+                // Only reward focus sessions (runs in background)
+                if (mode.isFocus) {
+                    val mins = totalSecs / 60
+                    val estExp = mins
+                    
+                    // Optimistically update local session count
+                    sessionsToday++
+                    xpThisSession += estExp
+                    
+                    AppState.addStudySession(totalSecs) { earnedExp, _ ->
+                        // Sync with actual rewards if they differ
+                        // xpThisSession = (xpThisSession - estExp) + earnedExp
+                    }
+                }
             }
         }
     }

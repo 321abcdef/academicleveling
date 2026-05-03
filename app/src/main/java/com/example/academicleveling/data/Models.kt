@@ -147,6 +147,19 @@ fun todayString(): String =
 fun shortDate(): String =
     java.text.SimpleDateFormat("MMM dd", java.util.Locale.getDefault()).format(java.util.Date())
 
+fun isoDate(): String =
+    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+
+fun formatDate(iso: String): String {
+    return try {
+        val input = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val output = java.text.SimpleDateFormat("MMM dd", java.util.Locale.US)
+        output.format(input.parse(iso)!!)
+    } catch (e: Exception) {
+        iso
+    }
+}
+
 fun getPerks(stats: Stats): List<Perk> = buildList {
     if (stats.intStat >= 10) add(Perk("INT 10", "Faster Study: +10% bonus XP"))
     if (stats.intStat >= 20) add(Perk("INT 20", "Speed Reader: Quiz answers count double"))

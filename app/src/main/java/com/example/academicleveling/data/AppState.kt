@@ -150,9 +150,11 @@ object AppState {
                 
                 // Fetch stats too
                 refreshUserStats(onComplete)
+                refreshSessionHistory()
             },
             onError = { 
                 refreshUserStats(onComplete)
+                refreshSessionHistory()
             }
         )
     }
@@ -559,11 +561,53 @@ object AppState {
     //  STUDY SESSIONS
     // ══════════════════════════════════════════════════════════════════════
 
-    fun addStudySession(mins: Int) {
-        totalMins += mins; streak++; streakAtRisk = false
-        val earned = mins * 2; addXP(earned); addCoins(mins)
-        sessionHistory = (listOf(SessionEntry(shortDate(), mins, earned)) + sessionHistory).take(10)
-        completeQuest(1); completeQuest(4); checkAchievements(); save()
+    fun addStudySession(durationSeconds: Int, onComplete: (Int, Int) -> Unit = { _, _ -> }) {
+        ApiRepository.createStudySession(
+            durationSeconds = durationSeconds,
+            onSuccess = { response ->
+                val mins = durationSeconds / 60
+                val earnedExp = response.data.rewards.exp
+                val earnedCoins = response.data.rewards.coins
+                
+                totalMins += mins
+                streak++
+                streakAtRisk = false
+                
+                addXP(earnedExp)
+                addCoins(earnedCoins)
+                
+                sessionHistory = (listOf(SessionEntry(isoDate(), mins, earnedExp)) + sessionHistory).take(50)
+                completeQuest(1)
+                completeQuest(4)
+                checkAchievements()
+                save()
+                onComplete(earnedExp, earnedCoins)
+            },
+            onError = {
+                // Optional: handle error
+            }
+        )
+    }
+
+    fun refreshSessionHistory(onComplete: () -> Unit = {}) {
+        ApiRepository.getStudySessions(
+            onSuccess = { response ->
+                // Sort by the full timestamp string descending before mapping
+                sessionHistory = response.data
+                    .sortedByDescending { it.sessionAt }
+                    .map { apiSession ->
+                        val mins = apiSession.duration / 60
+                        val earnedExp = mins 
+                        
+                        // Use yyyy-MM-dd for sorting/filtering consistency
+                        val datePart = apiSession.sessionAt.split("T").firstOrNull() ?: isoDate()
+                        SessionEntry(datePart, mins, earnedExp)
+                    }
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
     }
 
     // ══════════════════════════════════════════════════════════════════════
