@@ -77,7 +77,17 @@ fun DungeonScreen(
                     }
                 }
             },
-            onEdit   = { q -> SoundManager.navigate(); editingQuiz = q; nav = DNav.EDIT },
+            onEdit   = { q ->
+                SoundManager.navigate()
+                isLoadingQuiz = true
+                AppState.loadQuizFullInfo(q.id) { fullQuiz ->
+                    isLoadingQuiz = false
+                    if (fullQuiz != null) {
+                        editingQuiz = fullQuiz
+                        nav = DNav.EDIT
+                    }
+                }
+            },
             onDelete = { q -> 
                 AppState.deleteQuiz(
                     id = q.id,

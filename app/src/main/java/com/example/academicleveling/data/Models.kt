@@ -44,6 +44,7 @@ data class QuizQuestion(
 data class Quiz(
     val id:               Int,
     val title:            String,
+    val description:      String        = "",
     val creator:          String,
     val creatorName:      String        = "",
     val questions:        List<QuizQuestion>,

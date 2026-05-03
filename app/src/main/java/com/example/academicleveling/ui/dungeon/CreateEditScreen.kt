@@ -39,7 +39,7 @@ fun CreateEditScreen(
     var step by remember { mutableStateOf(if (isEdit) CreateStep.QUESTIONS else CreateStep.INFO) }
 
     var title            by remember { mutableStateOf(existing?.title      ?: "") }
-    var description      by remember { mutableStateOf("") } // Added description field
+    var description      by remember { mutableStateOf(existing?.description ?: "") }
     var subject          by remember { mutableStateOf(existing?.subject    ?: "") }
     var gradeLevel       by remember { mutableStateOf(existing?.gradeLevel ?: "All") }
     var difficulty       by remember { mutableStateOf(existing?.difficulty ?: Difficulty.MEDIUM) }
@@ -121,6 +121,7 @@ fun CreateEditScreen(
         return Quiz(
             id = apiData.id,
             title = apiData.title,
+            description = apiData.description,
             creator = apiData.user.name,
             creatorName = apiData.user.name,
             questions = questions,
@@ -516,36 +517,25 @@ fun CreateEditScreen(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                         .background(if (isSaving) Teal.copy(0.5f) else Teal)
                         .clickable(enabled = !isSaving) {
-                            if (isEdit) {
-                                // For now, we still use local save for edits if no PUT endpoint yet
-                                // or we can just treat it as a new creation if requested.
-                                // The user only asked for POST /api/quizzes.
-                                // buildQuiz is not strictly needed if we just call onSave with a stub
-                                // but let's just use the legacy local build for Edit.
-                                // Actually, let's just implement Create for now.
-                                val q = Quiz(
-                                    id               = existing?.id ?: 0,
-                                    title            = title.trim(),
-                                    creator          = AppState.name,
-                                    questions        = questions,
-                                    questionsCount   = questions.size,
-                                    exp              = questions.size * 20,
-                                    quizType         = quizType,
-                                    timerMode        = timerMode,
-                                    timerSeconds     = if (timerMode != QuizTimerMode.NONE) (timerSecs.toIntOrNull() ?: 30) else 0,
-                                    subject          = subject.trim().ifBlank { "General" },
-                                    gradeLevel       = gradeLevel,
-                                    difficulty       = difficulty,
-                                    code             = existing?.code ?: "",
-                                    dateCreated      = existing?.dateCreated ?: todayString(),
-                                    shuffleQuestions = shuffleQuestions,
-                                    shuffleOptions   = shuffleOptions
-                                )
-                                onSave(q)
-                            } else {
-                                val req = buildCreateRequest()
-                                if (req != null) {
-                                    isSaving = true
+                            val req = buildCreateRequest()
+                            if (req != null) {
+                                isSaving = true
+                                if (isEdit) {
+                                    AppState.updateQuizWithApi(
+                                        quizId = existing.id,
+                                        request = req,
+                                        onComplete = { updated ->
+                                            isSaving = false
+                                            if (updated != null) {
+                                                SoundManager.claim()
+                                                onSave(updated)
+                                            } else {
+                                                formError = "Failed to update quiz"
+                                                SoundManager.error()
+                                            }
+                                        }
+                                    )
+                                } else {
                                     ApiRepository.createQuiz(
                                         request = req,
                                         onSuccess = { resp ->

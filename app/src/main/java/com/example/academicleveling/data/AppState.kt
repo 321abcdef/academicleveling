@@ -186,6 +186,7 @@ object AppState {
                     Quiz(
                         id = apiQuiz.id,
                         title = apiQuiz.title,
+                        description = apiQuiz.description,
                         creator = apiQuiz.user.name,
                         creatorName = apiQuiz.user.name,
                         questions = emptyList(),
@@ -236,6 +237,7 @@ object AppState {
                 val mappedQuiz = Quiz(
                     id = apiQuiz.id,
                     title = apiQuiz.title,
+                    description = apiQuiz.description,
                     creator = apiQuiz.user.name,
                     creatorName = apiQuiz.user.name,
                     questionsCount = apiQuiz.questionsCount,
@@ -403,6 +405,75 @@ object AppState {
     }
 
     fun editQuiz(q: Quiz)   { myQuizzes = myQuizzes.map { if (it.id == q.id) q else it }; save() }
+
+    fun updateQuizWithApi(quizId: Int, request: CreateQuizRequest, onComplete: (Quiz?) -> Unit) {
+        ApiRepository.updateQuiz(
+            quizId = quizId,
+            request = request,
+            onSuccess = { response ->
+                val apiQuiz = response.data
+                // Map the updated quiz back to local model
+                // Note: We might want to preserve local question IDs if they are important, 
+                // but the API returns its own IDs.
+                val updatedQuiz = Quiz(
+                    id = apiQuiz.id,
+                    title = apiQuiz.title,
+                    description = apiQuiz.description,
+                    creator = apiQuiz.user.name,
+                    creatorName = apiQuiz.user.name,
+                    questions = apiQuiz.questions.map { q ->
+                        QuizQuestion(
+                            id = q.id,
+                            q = q.questionText,
+                            type = when(q.type.lowercase().trim()) {
+                                "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                                "true_false"      -> QuizType.TRUE_FALSE
+                                "identification"  -> QuizType.IDENTIFICATION
+                                else              -> QuizType.MIX
+                            },
+                            identAnswer = q.correctAnswer ?: "",
+                            correct = q.choices.indexOfFirst { it.isCorrect }.coerceAtLeast(0),
+                            opts = q.choices.map { it.choiceText },
+                            optIds = q.choices.map { it.id }
+                        )
+                    },
+                    questionsCount = apiQuiz.questionsCount,
+                    exp = apiQuiz.questionsCount * 20,
+                    subject = apiQuiz.subject,
+                    gradeLevel = apiQuiz.gradeLevel,
+                    difficulty = when(apiQuiz.difficulty.lowercase()) {
+                        "easy" -> Difficulty.EASY
+                        "hard" -> Difficulty.HARD
+                        else -> Difficulty.MEDIUM
+                    },
+                    code = apiQuiz.quizCode,
+                    dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+                    shuffleQuestions = apiQuiz.isQuestionShuffled,
+                    shuffleOptions = apiQuiz.isChoicesShuffled,
+                    quizType = when(apiQuiz.type.lowercase().trim()) {
+                        "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                        "true_false"      -> QuizType.TRUE_FALSE
+                        "identification"  -> QuizType.IDENTIFICATION
+                        else              -> QuizType.MIX
+                    },
+                    timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                        "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                        "question" -> QuizTimerMode.PER_QUESTION
+                        else -> QuizTimerMode.NONE
+                    },
+                    timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                        "quiz" -> apiQuiz.questionsCount * 30
+                        "question" -> 30
+                        else -> 0
+                    }
+                )
+                myQuizzes = myQuizzes.map { if (it.id == updatedQuiz.id) updatedQuiz else it }
+                save()
+                onComplete(updatedQuiz)
+            },
+            onError = { onComplete(null) }
+        )
+    }
     
     fun deleteQuiz(id: Int, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         ApiRepository.deleteQuiz(
@@ -423,6 +494,7 @@ object AppState {
                     Quiz(
                         id = apiQuiz.id,
                         title = apiQuiz.title,
+                        description = apiQuiz.description,
                         creator = apiQuiz.user.name,
                         creatorName = apiQuiz.user.name,
                         questions = emptyList(),
