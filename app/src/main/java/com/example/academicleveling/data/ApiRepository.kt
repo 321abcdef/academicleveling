@@ -89,6 +89,12 @@ interface AcademicApi {
 
     @POST("quests/{id}/claim")
     fun claimQuestReward(@Path("id") id: Int): Call<ClaimQuestResponse>
+
+    @GET("achievements")
+    fun getAchievements(): Call<AchievementListResponse>
+
+    @POST("achievements/{id}/claim")
+    fun claimAchievementReward(@Path("id") id: Int): Call<ClaimAchievementResponse>
 }
 
 object ApiRepository {
@@ -756,6 +762,47 @@ object ApiRepository {
                 }
             }
             override fun onFailure(call: Call<ClaimQuestResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  ACHIEVEMENTS
+    // ══════════════════════════════════════════════════════════════════════
+
+    fun getAchievements(
+        onSuccess: (AchievementListResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getAchievements().enqueue(object : Callback<AchievementListResponse> {
+            override fun onResponse(call: Call<AchievementListResponse>, response: Response<AchievementListResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<AchievementListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun claimAchievementReward(
+        achievementId: Int,
+        onSuccess: (ClaimAchievementResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.claimAchievementReward(achievementId).enqueue(object : Callback<ClaimAchievementResponse> {
+            override fun onResponse(call: Call<ClaimAchievementResponse>, response: Response<ClaimAchievementResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to claim: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<ClaimAchievementResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

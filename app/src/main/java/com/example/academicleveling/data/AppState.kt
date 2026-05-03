@@ -145,6 +145,7 @@ object AppState {
                 refreshUserStats(onComplete)
                 refreshSessionHistory()
                 refreshQuests()
+                refreshAchievements()
             },
             onError = { 
                 refreshUserStats(onComplete)
@@ -692,34 +693,60 @@ object AppState {
     //  ACHIEVEMENTS
     // ══════════════════════════════════════════════════════════════════════
 
-    fun claimAchievement(id: Int): Int {
-        var earned = 0
-        achievements = achievements.map { a ->
-            if (a.id == id && a.unlocked && !a.claimed) {
-                earned = a.coinReward; addCoins(a.coinReward); a.copy(claimed = true)
-            } else a
-        }
-        if (earned > 0) save()
-        return earned
+    fun refreshAchievements(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getAchievements(
+            onSuccess = { response ->
+                achievements = response.data.map { mapAchievement(it) }
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
+    }
+
+    private fun mapAchievement(api: AchievementApiData): Achievement {
+        val exp = api.rewards?.exp?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        val coins = api.rewards?.coins?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        val progress = api.progress?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        val target = api.target?.toString()?.toDoubleOrNull()?.toInt() ?: 1
+        val id = api.id?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        
+        return Achievement(
+            id = id,
+            title = api.name ?: "Achievement",
+            description = api.description ?: "",
+            expReward = exp,
+            coinReward = coins,
+            progress = progress,
+            target = target,
+            unlocked = api.completedAt != null,
+            claimed = api.claimedAt != null
+        )
+    }
+
+    fun claimAchievement(id: Int, onComplete: (Int, Int) -> Unit = { _, _ -> }) {
+        ApiRepository.claimAchievementReward(id,
+            onSuccess = { response ->
+                val exp = response.data.expGained
+                val coins = response.data.coinsGained
+                addXP(exp)
+                addCoins(coins)
+
+                // Update local state
+                achievements = achievements.map { 
+                    if (it.id == id) it.copy(claimed = true, unlocked = true) else it 
+                }
+                save()
+                onComplete(exp, coins)
+            },
+            onError = { /* Handle error */ }
+        )
     }
 
     private fun checkAchievements(forceId: Int? = null) {
-        achievements = achievements.map { a ->
-            if (a.unlocked) return@map a
-            val unlock = forceId == a.id || when (a.id) {
-                1  -> totalMins > 0
-                2  -> quizzesCompleted > 0
-                3  -> quests.all { q -> q.done }
-                4  -> myQuizzes.isNotEmpty()
-                5  -> level >= 5
-                6  -> level >= 10
-                7  -> totalXP >= 1000
-                8  -> totalMins >= 60
-                9  -> quizzesCompleted >= 5
-                else -> false
-            }
-            if (unlock) a.copy(unlocked = true) else a
-        }
+        // Now mostly handled by backend, but we can refresh to be sure
+        refreshAchievements()
     }
 
     fun unlockSpeedDemon()    {

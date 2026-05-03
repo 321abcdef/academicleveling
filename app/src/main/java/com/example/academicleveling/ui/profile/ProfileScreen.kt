@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,10 @@ import com.example.academicleveling.ui.theme.*
 fun ProfileScreen(onLogout: () -> Unit) {
     var showSettings by remember { mutableStateOf(false) }
     var showProgress by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        AppState.refreshAchievements()
+    }
 
     if (showSettings) {
         ProfileSettingsScreen(onBack = { showSettings = false })
@@ -157,8 +162,9 @@ fun ProfileScreen(onLogout: () -> Unit) {
                     SectionCard("ACHIEVEMENTS") {
                         AppState.achievements.forEach { a ->
                             AchievementRow(a) {
-                                val earned = AppState.claimAchievement(a.id)
-                                if (earned > 0) SoundManager.claim()
+                                AppState.claimAchievement(a.id) { exp, coins ->
+                                    SoundManager.claim()
+                                }
                             }
                         }
                     }
@@ -215,64 +221,90 @@ fun ProfileScreen(onLogout: () -> Unit) {
 @Composable
 private fun AchievementRow(a: Achievement, onClaim: () -> Unit) {
     var claimMsg by remember(a.id, a.claimed) { mutableStateOf("") }
+    val readyToClaim = a.unlocked && !a.claimed
 
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Box(
-            Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
-                .background(if (a.unlocked) Gold.copy(.15f) else Color.White.copy(.05f)),
-            Alignment.Center
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (a.unlocked) Icons.Default.EmojiEvents else Icons.Default.Lock,
-                contentDescription = null,
-                tint = if (a.unlocked) Gold else TextMuted,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                a.title, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
-                color = if (a.unlocked) TextPrimary else TextMuted
-            )
-            Text(a.description, fontSize = 10.sp, color = TextMuted)
-            if (claimMsg.isNotBlank())
-                Text(claimMsg, fontSize = 10.sp, color = Gold, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.width(6.dp))
-        when {
-            !a.unlocked -> Box(
-                Modifier.clip(RoundedCornerShape(4.dp)).background(Color.White.copy(.05f))
-                    .padding(horizontal = 5.dp, vertical = 2.dp)
-            ) { Text("LOCKED", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.ExtraBold) }
-
-            a.unlocked && !a.claimed -> Box(
-                Modifier.clip(RoundedCornerShape(6.dp)).background(Gold.copy(.15f))
-                    .border(1.dp, Gold.copy(.4f), RoundedCornerShape(6.dp))
-                    .clickable { onClaim(); claimMsg = "+${a.coinReward} coins!" }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                    .background(if (a.unlocked) Gold.copy(.15f) else Color.White.copy(.05f)),
+                Alignment.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Paid, null, tint = Gold, modifier = Modifier.size(10.dp))
-                    Spacer(Modifier.width(3.dp))
+                Icon(
+                    imageVector = if (a.unlocked) Icons.Default.EmojiEvents else Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = if (a.unlocked) Gold else TextMuted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    a.title, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
+                    color = if (a.unlocked) TextPrimary else TextMuted
+                )
+                Text(a.description, fontSize = 10.sp, color = TextMuted)
+            }
+            Spacer(Modifier.width(6.dp))
+            when {
+                readyToClaim -> Box(
+                    Modifier.clip(RoundedCornerShape(6.dp)).background(Gold.copy(.15f))
+                        .border(1.dp, Gold.copy(.4f), RoundedCornerShape(6.dp))
+                        .clickable { onClaim(); claimMsg = "Claimed!" }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Text("CLAIM", fontSize = 9.sp, color = Gold, fontWeight = FontWeight.ExtraBold)
                 }
-            }
 
-            else -> Box(
-                Modifier.clip(RoundedCornerShape(4.dp)).background(SuccessGreen.copy(.1f))
-                    .padding(horizontal = 5.dp, vertical = 2.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(10.dp))
-                    Spacer(Modifier.width(3.dp))
+                a.claimed -> Box(
+                    Modifier.clip(RoundedCornerShape(4.dp)).background(SuccessGreen.copy(.1f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
                     Text("CLAIMED", fontSize = 8.sp, color = SuccessGreen, fontWeight = FontWeight.ExtraBold)
                 }
+
+                else -> Box(
+                    Modifier.clip(RoundedCornerShape(4.dp)).background(Color.White.copy(.05f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) { Text("LOCKED", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.ExtraBold) }
             }
         }
+
+        if (!a.claimed) {
+            val progressVal = (a.progress.toFloat() / a.target.coerceAtLeast(1)).coerceIn(0f, 1f)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LinearProgressIndicator(
+                    progress = { progressVal },
+                    modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                    color = if (a.unlocked) Gold else Teal,
+                    trackColor = Color(0xFF2A2A3E)
+                )
+                Text(
+                    "${a.progress.coerceAtMost(a.target)} / ${a.target}",
+                    fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (a.expReward > 0) RewardTag("+${a.expReward} XP", Teal)
+            if (a.coinReward > 0) RewardTag("+${a.coinReward} Coins", Gold)
+        }
+    }
+}
+
+@Composable
+private fun RewardTag(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(4.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(4.dp))
+        Text(label, fontSize = 9.sp, color = color, fontWeight = FontWeight.ExtraBold)
     }
 }
 

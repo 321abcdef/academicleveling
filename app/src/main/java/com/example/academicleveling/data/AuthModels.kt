@@ -356,3 +356,33 @@ data class ClaimQuestData(
     @SerializedName("exp_gained") val expGained: Int,
     @SerializedName("coins_gained") val coinsGained: Int
 )
+
+// ══════════════════════════════════════════════════════════════════════
+//  ACHIEVEMENTS
+// ══════════════════════════════════════════════════════════════════════
+
+data class AchievementListResponse(val data: List<AchievementApiData>)
+data class AchievementApiData(
+    val id: Any?,
+    val name: String?,
+    val description: String?,
+    val icon: String?,
+    val target: Any?,
+    val progress: Any?,
+    @SerializedName("completed_at") val completedAt: String?,
+    @SerializedName("claimed_at") val claimedAt: String?,
+    val rewards: AchievementRewards?
+)
+data class AchievementRewards(
+    val exp: Any?,
+    val coins: Any?
+)
+
+data class ClaimAchievementResponse(
+    val message: String,
+    val data: ClaimAchievementData
+)
+data class ClaimAchievementData(
+    @SerializedName("exp_gained") val expGained: Int,
+    @SerializedName("coins_gained") val coinsGained: Int
+)

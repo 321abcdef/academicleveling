@@ -97,7 +97,10 @@ data class Achievement(
     val id:          Int,
     val title:       String,
     val description: String,
+    val expReward:   Int     = 0,
     val coinReward:  Int     = 0,
+    val progress:    Int     = 0,
+    val target:      Int     = 1,
     val unlocked:    Boolean = false,
     val claimed:     Boolean = false
 )
