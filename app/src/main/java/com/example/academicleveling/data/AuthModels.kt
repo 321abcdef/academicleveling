@@ -312,7 +312,7 @@ data class AttemptData(
     val score: Int,
     @SerializedName("started_at") val startedAt: String,
     @SerializedName("completed_at") val completedAt: String?,
-    val quiz: AttemptQuizData,
+    val quiz: AttemptQuizData?, // Made nullable to prevent crashes if quiz is deleted
     val answers: List<AttemptAnswerData>? = null
 )
 

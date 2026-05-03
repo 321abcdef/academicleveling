@@ -44,7 +44,8 @@ fun QuizHistoryScreen(
         isLoading = true
         ApiRepository.getAttempts(
             onSuccess = { resp ->
-                history = resp.data
+                // Filter out attempts where the quiz info is missing (possibly deleted)
+                history = resp.data.filter { it.quiz != null }
                 isLoading = false
             },
             onError = { err ->
@@ -132,7 +133,7 @@ fun QuizHistoryScreen(
                             entry = entry,
                             isOpen = expanded == idx,
                             onToggle = { expanded = if (expanded == idx) null else idx },
-                            onRetry = onRetry?.let { cb -> { cb(entry.quiz.quizCode) } }
+                            onRetry = onRetry?.let { cb -> { cb(entry.quiz?.quizCode ?: "") } }
                         )
                     }
 
@@ -184,7 +185,8 @@ private fun HistoryEntryCard(
     onToggle: () -> Unit,
     onRetry:  (() -> Unit)? = null
 ) {
-    val total = entry.quiz.questionsCount
+    val quiz = entry.quiz ?: return // Safety check, though filtered list prevents this
+    val total = quiz.questionsCount
     val pct   = if (total == 0) 0f else entry.score.toFloat() / total
     val grade = when {
         pct >= .9f -> "S"; pct >= .8f -> "A"; pct >= .7f -> "B"
@@ -224,17 +226,17 @@ private fun HistoryEntryCard(
             Arrangement.SpaceBetween, Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(entry.quiz.title, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                Text(quiz.title, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CalendarToday, null, tint = TextMuted, modifier = Modifier.size(10.dp))
                     Text(entry.completedAt ?: entry.startedAt, fontSize = 10.sp, color = TextMuted)
-                    if (entry.quiz.quizCode.isNotBlank()) {
+                    if (quiz.quizCode.isNotBlank()) {
                         Box(
                             Modifier.clip(RoundedCornerShape(3.dp))
                                 .background(Teal.copy(.12f))
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
-                            Text(entry.quiz.quizCode, fontSize = 9.sp, color = Teal, fontWeight = FontWeight.ExtraBold)
+                            Text(quiz.quizCode, fontSize = 9.sp, color = Teal, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }
@@ -273,7 +275,7 @@ private fun HistoryEntryCard(
                     }
                 }
 
-                if (onRetry != null && entry.quiz.quizCode.isNotBlank()) {
+                if (onRetry != null && quiz.quizCode.isNotBlank()) {
                     Spacer(Modifier.height(4.dp))
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))

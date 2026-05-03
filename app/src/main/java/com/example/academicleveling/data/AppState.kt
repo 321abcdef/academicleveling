@@ -482,6 +482,8 @@ object AppState {
             quizId = id,
             onSuccess = {
                 myQuizzes = myQuizzes.filter { it.id != id }
+                // Also remove associated attempts from local history if any
+                quizHistory = quizHistory.filter { it.quizId != id }
                 save()
                 onSuccess()
             },
