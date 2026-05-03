@@ -4,9 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -38,11 +39,28 @@ fun MyQuizzesScreen(
 ) {
     var deleteTarget by remember { mutableStateOf<Quiz?>(null) }
     var isLoading    by remember { mutableStateOf(false) }
+    val listState    = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         isLoading = true
         AppState.refreshMyQuizzes {
             isLoading = false
+        }
+    }
+
+    // Infinite Scroll Logic
+    val canLoadMore = AppState.canLoadMoreMyQuizzes
+    val isMoreLoading = AppState.isMyQuizzesLoading && AppState.myQuizzes.isNotEmpty()
+
+    LaunchedEffect(listState, canLoadMore) {
+        snapshotFlow {
+            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            (lastItem?.index ?: 0) to AppState.isMyQuizzesLoading
+        }.collect { (lastIndex, isApiLoading) ->
+            val totalItems = listState.layoutInfo.totalItemsCount
+            if (lastIndex >= totalItems - 5 && canLoadMore && !isApiLoading) {
+                AppState.loadMoreMyQuizzes()
+            }
         }
     }
 
@@ -116,40 +134,58 @@ fun MyQuizzesScreen(
         Column(Modifier.fillMaxSize()) {
             SubPageBar("MY QUIZZES", onBack)
 
-            Column(
-                modifier            = Modifier.fillMaxWidth().weight(1f)
-                    .verticalScroll(rememberScrollState()).padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TealButton("+ CREATE NEW QUIZ", onCreate, Modifier.fillMaxWidth())
-
-                if (isLoading) {
-                    Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
-                        CircularProgressIndicator(color = Teal)
-                    }
-                } else if (AppState.myQuizzes.isEmpty()) {
+            if (isLoading && AppState.myQuizzes.isEmpty()) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator(color = Teal)
+                }
+            } else if (AppState.myQuizzes.isEmpty()) {
+                Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TealButton("+ CREATE NEW QUIZ", onCreate, Modifier.fillMaxWidth())
                     EmptyState(
-                        icon     = Icons.Default.Quiz,
-                        tint     = Teal,
-                        title    = "No quizzes yet!",
+                        icon = Icons.Default.Quiz,
+                        tint = Teal,
+                        title = "No quizzes yet!",
                         subtitle = "Tap Create New Quiz to get started"
                     )
-                } else {
-                AppState.myQuizzes.sortedByDescending { it.id }.forEach { quiz ->
-                    QuizCard(quiz = quiz, showCode = true) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            IconActionChip(Icons.Default.PlayArrow, "PLAY", SuccessGreen) {
-                                onPlay(quiz)
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        TealButton("+ CREATE NEW QUIZ", onCreate, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                    }
+
+                    items(
+                        items = AppState.myQuizzes,
+                        key = { it.id }
+                    ) { quiz ->
+                        QuizCard(quiz = quiz, showCode = true) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                IconActionChip(Icons.Default.PlayArrow, "PLAY", SuccessGreen) {
+                                    onPlay(quiz)
+                                }
+                                IconActionChip(Icons.Default.Edit, "EDIT", Blue) {
+                                    onEdit(quiz)
+                                }
+                                IconActionChip(Icons.Default.Delete, "DELETE", DangerRed) { deleteTarget = quiz }
                             }
-                            IconActionChip(Icons.Default.Edit, "EDIT", Blue) {
-                                onEdit(quiz)
-                            }
-                            IconActionChip(Icons.Default.Delete, "DELETE", DangerRed) { deleteTarget = quiz }
                         }
                     }
+
+                    if (isMoreLoading) {
+                        item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), Alignment.Center) {
+                                CircularProgressIndicator(color = Teal, modifier = Modifier.size(32.dp))
+                            }
+                        }
+                    }
+
+                    item { Spacer(Modifier.height(80.dp)) }
                 }
-                }
-                Spacer(Modifier.height(80.dp))
             }
         }
     }

@@ -73,6 +73,11 @@ object AppState {
     var canLoadMoreCommunity by mutableStateOf(false)
     var isCommunityLoading   by mutableStateOf(false)
 
+    var myQuizzesCurrentPage by mutableStateOf(1)
+    var myQuizzesLastPage    by mutableStateOf(1)
+    var canLoadMoreMyQuizzes by mutableStateOf(false)
+    var isMyQuizzesLoading   by mutableStateOf(false)
+
     val SHOP_ITEMS: List<ShopItem> = listOf(
         ShopItem(1, "Time Warp",       "Adds +30s to your quiz timer.",               100, ShopEffect.TIME_WARP),
         ShopItem(2, "50/50",           "Eliminates 2 wrong options on MC questions.",  200, ShopEffect.SECOND_CHANCE),
@@ -607,53 +612,47 @@ object AppState {
     }
 
     fun refreshMyQuizzes(onComplete: (List<Quiz>) -> Unit = {}) {
+        isMyQuizzesLoading = true
         ApiRepository.getMyQuizzes(
+            page = 1,
             onSuccess = { response ->
-                val quizzes = response.data.map { apiQuiz ->
-                    Quiz(
-                        id = apiQuiz.id,
-                        title = apiQuiz.title,
-                        description = apiQuiz.description,
-                        creator = apiQuiz.user.name,
-                        creatorName = apiQuiz.user.name,
-                        questions = emptyList(),
-                        questionsCount = apiQuiz.questionsCount,
-                        exp = apiQuiz.questionsCount * 20,
-                        quizType = when(apiQuiz.type.lowercase().trim()) {
-                            "multiple_choice" -> QuizType.MULTIPLE_CHOICE
-                            "true_false"      -> QuizType.TRUE_FALSE
-                            "identification"  -> QuizType.IDENTIFICATION
-                            "mixed"           -> QuizType.MIX
-                            else              -> QuizType.MIX
-                        },
-                        timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
-                            "quiz" -> QuizTimerMode.WHOLE_QUIZ
-                            "question" -> QuizTimerMode.PER_QUESTION
-                            else -> QuizTimerMode.NONE
-                        },
-                        timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
-                            "quiz" -> apiQuiz.questionsCount * 30
-                            "question" -> 30
-                            else -> 0
-                        },
-                        subject = apiQuiz.subject,
-                        gradeLevel = apiQuiz.gradeLevel,
-                        difficulty = when(apiQuiz.difficulty.lowercase()) {
-                            "easy" -> Difficulty.EASY
-                            "hard" -> Difficulty.HARD
-                            else -> Difficulty.MEDIUM
-                        },
-                        code = apiQuiz.quizCode,
-                        dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
-                        shuffleQuestions = apiQuiz.isQuestionShuffled,
-                        shuffleOptions = apiQuiz.isChoicesShuffled
-                    )
-                }
+                val quizzes = response.data.map { apiQuiz -> mapApiQuizToQuiz(apiQuiz) }
                 myQuizzes = quizzes
+                myQuizzesCurrentPage = response.meta?.currentPage ?: 1
+                myQuizzesLastPage = response.meta?.lastPage ?: 1
+                canLoadMoreMyQuizzes = myQuizzesCurrentPage < myQuizzesLastPage
+                isMyQuizzesLoading = false
                 save()
                 onComplete(quizzes)
             },
-            onError = { onComplete(emptyList()) }
+            onError = { 
+                isMyQuizzesLoading = false
+                onComplete(emptyList()) 
+            }
+        )
+    }
+
+    fun loadMoreMyQuizzes(onComplete: (List<Quiz>) -> Unit = {}) {
+        if (isMyQuizzesLoading || !canLoadMoreMyQuizzes) return
+
+        isMyQuizzesLoading = true
+        val nextPage = myQuizzesCurrentPage + 1
+        ApiRepository.getMyQuizzes(
+            page = nextPage,
+            onSuccess = { response ->
+                val newQuizzes = response.data.map { apiQuiz -> mapApiQuizToQuiz(apiQuiz) }
+                myQuizzes = myQuizzes + newQuizzes
+                myQuizzesCurrentPage = response.meta?.currentPage ?: nextPage
+                myQuizzesLastPage = response.meta?.lastPage ?: myQuizzesLastPage
+                canLoadMoreMyQuizzes = myQuizzesCurrentPage < myQuizzesLastPage
+                isMyQuizzesLoading = false
+                save()
+                onComplete(newQuizzes)
+            },
+            onError = {
+                isMyQuizzesLoading = false
+                onComplete(emptyList())
+            }
         )
     }
 
