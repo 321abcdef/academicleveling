@@ -100,12 +100,12 @@ fun LoginScreen(onLogin: () -> Unit, onSignup: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("Email")
-                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Value")
+                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Enter Email")
 
                 Spacer(Modifier.height(16.dp))
 
                 AuthLabel("Password")
-                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Enter Password", isPassword = true)
 
                 if (errorMessage != null) {
                     Text(
@@ -200,16 +200,16 @@ fun SignupScreen(onSignup: () -> Unit, onLogin: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AuthLabel("Username")
-                AuthTextField(value = username, onValueChange = { username = it; errorMessage = null }, placeholder = "Value")
+                AuthTextField(value = username, onValueChange = { username = it; errorMessage = null }, placeholder = "Enter Username")
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Email")
-                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Value")
+                AuthTextField(value = email, onValueChange = { email = it; errorMessage = null }, placeholder = "Enter Email")
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Password")
-                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+                AuthTextField(value = password, onValueChange = { password = it; errorMessage = null }, placeholder = "Enter Password", isPassword = true)
                 Spacer(Modifier.height(14.dp))
                 AuthLabel("Confirm Password")
-                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it; errorMessage = null }, placeholder = "Value", isPassword = true)
+                AuthTextField(value = confirmPassword, onValueChange = { confirmPassword = it; errorMessage = null }, placeholder = "Confrm Password", isPassword = true)
 
                 if (errorMessage != null) {
                     Text(
