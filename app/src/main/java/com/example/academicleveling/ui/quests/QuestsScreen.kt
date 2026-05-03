@@ -39,17 +39,35 @@ fun QuestsScreen(
 ) {
     var dailyClaimMsg  by remember { mutableStateOf("") }
     var weeklyClaimMsg by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        errorMsg = null
+        AppState.refreshQuests {
+            isLoading = false
+            if (AppState.quests.isEmpty() && AppState.weeklyQuests.isEmpty()) {
+                // errorMsg = "No quests found or failed to load"
+            }
+        }
+    }
 
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
             TopBar()
 
-            Column(
-                modifier            = Modifier.fillMaxWidth().weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            if (isLoading && AppState.quests.isEmpty() && AppState.weeklyQuests.isEmpty()) {
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.CircularProgressIndicator(color = Teal)
+                }
+            } else {
+                Column(
+                    modifier            = Modifier.fillMaxWidth().weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 // Hero card
                 Row(
                     modifier              = Modifier.fillMaxWidth()
@@ -117,46 +135,51 @@ fun QuestsScreen(
                 )
 
                 // Daily Quests
+                val dailyBonus = AppState.dailyBonusQuest
                 QuestSection(
                     title        = "DAILY QUESTS",
                     titleIcon    = Icons.Default.Today,
                     accentColor  = Teal,
                     quests       = AppState.quests,
                     claimMsg     = dailyClaimMsg,
-                    allDone      = AppState.quests.all { it.done },
-                    bonusLabel   = "CLAIM DAILY BONUS  •  +50 XP  +20 coins",
-                    pendingLabel = "Complete all daily quests to claim bonus",
+                    allDone      = dailyBonus?.done == true && !dailyBonus.claimed,
+                    bonusLabel   = dailyBonus?.let { "CLAIM DAILY BONUS  •  +${it.exp} XP  +${it.coins} coins" } ?: "DAILY BONUS",
+                    claimed      = dailyBonus?.claimed == true,
+                    pendingLabel = if (dailyBonus?.claimed == true) "DAILY BONUS CLAIMED" else "Complete all daily quests to claim bonus",
                     onComplete   = { id -> AppState.completeQuest(id) },
                     onClaim      = {
                         val earned = AppState.claimBonus()
                         if (earned > 0) {
-                            dailyClaimMsg = "Claimed! +${earned} XP  +20 coins"
+                            dailyClaimMsg = "Claimed! +${earned} XP  +${dailyBonus?.coins} coins"
                             SoundManager.claim()
                         }
                     }
                 )
 
                 // Weekly Quests
+                val weeklyBonus = AppState.weeklyBonusQuest
                 QuestSection(
                     title        = "WEEKLY QUESTS",
                     titleIcon    = Icons.Default.DateRange,
                     accentColor  = Purple,
                     quests       = AppState.weeklyQuests,
                     claimMsg     = weeklyClaimMsg,
-                    allDone      = AppState.weeklyQuests.all { it.done },
-                    bonusLabel   = "CLAIM WEEKLY BONUS  •  +100 XP  +50 coins",
-                    pendingLabel = "Complete all weekly quests to claim bonus",
+                    allDone      = weeklyBonus?.done == true && !weeklyBonus.claimed,
+                    bonusLabel   = weeklyBonus?.let { "CLAIM WEEKLY BONUS  •  +${it.exp} XP  +${it.coins} coins" } ?: "WEEKLY BONUS",
+                    claimed      = weeklyBonus?.claimed == true,
+                    pendingLabel = if (weeklyBonus?.claimed == true) "WEEKLY BONUS CLAIMED" else "Complete all weekly quests to claim bonus",
                     onComplete   = { id -> AppState.completeQuest(id) },
                     onClaim      = {
                         val earned = AppState.claimWeeklyBonus()
                         if (earned > 0) {
-                            weeklyClaimMsg = "Claimed! +${earned} XP  +50 coins"
+                            dailyClaimMsg = "Claimed! +${earned} XP  +${weeklyBonus?.coins} coins"
                             SoundManager.claim()
                         }
                     }
                 )
 
                 Spacer(Modifier.height(80.dp))
+                }
             }
         }
     }
@@ -172,6 +195,7 @@ private fun QuestSection(
     allDone:      Boolean,
     bonusLabel:   String,
     pendingLabel: String,
+    claimed:      Boolean = false,
     onComplete:   (Int) -> Unit,
     onClaim:      () -> Unit
 ) {
@@ -230,7 +254,7 @@ private fun QuestSection(
             QuestRow(
                 quest       = q,
                 accentColor = accentColor,
-                onComplete  = { if (!q.done) { SoundManager.questDone(); onComplete(q.id) } }
+                onComplete  = { if (!q.claimed) { SoundManager.questDone(); onComplete(q.id) } }
             )
         }
 
@@ -247,29 +271,30 @@ private fun QuestSection(
             }
         }
 
+        val bonusActive = allDone && !claimed
         Box(
             modifier = Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(if (allDone) accentColor.copy(.20f) else Color(0xFF0D0D1A))
-                .border(1.dp, if (allDone) accentColor else Color(0xFF2A2A3E), RoundedCornerShape(10.dp))
-                .clickable(enabled = allDone) { onClaim() }
+                .background(if (bonusActive) accentColor.copy(.20f) else Color(0xFF0D0D1A))
+                .border(1.dp, if (bonusActive) accentColor else Color(0xFF2A2A3E), RoundedCornerShape(10.dp))
+                .clickable(enabled = bonusActive) { onClaim() }
                 .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (allDone) {
+                if (bonusActive || claimed) {
                     Icon(
-                        imageVector = Icons.Default.CardGiftcard,
+                        imageVector = if (claimed) Icons.Default.CheckCircle else Icons.Default.CardGiftcard,
                         contentDescription = null,
-                        tint = accentColor,
+                        tint = if (claimed) SuccessGreen else accentColor,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    if (allDone) bonusLabel else pendingLabel,
+                    if (bonusActive) bonusLabel else pendingLabel,
                     fontSize   = 11.sp,
-                    color      = if (allDone) accentColor else TextMuted,
+                    color      = if (bonusActive) accentColor else if (claimed) SuccessGreen else TextMuted,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -284,14 +309,16 @@ private fun QuestRow(
     onComplete:  () -> Unit
 ) {
     val done = quest.done
+    val claimed = quest.claimed
+    val readyToClaim = done && !claimed
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (done) accentColor.copy(.12f) else Color(0xFF0D0D1A))
-            .border(1.dp, if (done) accentColor.copy(.3f) else Color(0xFF2A2A3E), RoundedCornerShape(10.dp))
-            .clickable(enabled = !done) { onComplete() }
+            .background(if (claimed) accentColor.copy(.08f) else if (readyToClaim) accentColor.copy(.25f) else Color(0xFF0D0D1A))
+            .border(1.dp, if (readyToClaim) accentColor else if (claimed) accentColor.copy(.2f) else Color(0xFF2A2A3E), RoundedCornerShape(10.dp))
+            .clickable(enabled = readyToClaim) { onComplete() }
             .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -300,14 +327,14 @@ private fun QuestRow(
             modifier = Modifier
                 .size(26.dp)
                 .clip(RoundedCornerShape(7.dp))
-                .background(if (done) accentColor else Color(0xFF2A2A3E))
+                .background(if (claimed) accentColor.copy(.4f) else if (readyToClaim) accentColor else Color(0xFF2A2A3E))
                 .border(1.5.dp, accentColor.copy(.5f), RoundedCornerShape(7.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (done) Icons.Default.Check else Icons.Default.RadioButtonUnchecked,
+                imageVector = if (claimed) Icons.Default.CheckCircle else if (readyToClaim) Icons.Default.CardGiftcard else Icons.Default.RadioButtonUnchecked,
                 contentDescription = null,
-                tint = if (done) Color.White else accentColor.copy(.4f),
+                tint = if (claimed || readyToClaim) Color.White else accentColor.copy(.4f),
                 modifier = Modifier.size(14.dp)
             )
         }
@@ -316,11 +343,23 @@ private fun QuestRow(
             Text(
                 text       = quest.title,
                 fontSize   = 12.sp,
-                color      = if (done) TextMuted else TextPrimary,
-                fontWeight = if (done) FontWeight.Normal else FontWeight.SemiBold
+                color      = if (claimed) TextMuted else TextPrimary,
+                fontWeight = if (claimed) FontWeight.Normal else FontWeight.SemiBold
             )
-            if (!done) {
-                Text("Tap to mark as done", fontSize = 10.sp, color = accentColor.copy(.7f))
+            val isStudy = quest.type == "study_duration"
+            val useMinutes = isStudy && quest.target >= 60
+            val displayProgress = if (useMinutes) (quest.progress / 60) else quest.progress
+            val displayTarget = if (useMinutes) (quest.target / 60) else quest.target
+            val unit = if (useMinutes) "m" else ""
+
+            val finalProgress = displayProgress.coerceAtMost(displayTarget)
+
+            if (readyToClaim) {
+                Text("Ready to Claim! ($finalProgress$unit / $displayTarget$unit)", fontSize = 10.sp, color = accentColor, fontWeight = FontWeight.Bold)
+            } else if (!done) {
+                Text("$finalProgress$unit / $displayTarget$unit", fontSize = 10.sp, color = accentColor.copy(.7f))
+            } else if (claimed) {
+                Text("Reward Claimed ($finalProgress$unit / $displayTarget$unit)", fontSize = 10.sp, color = SuccessGreen.copy(.7f))
             }
         }
 
@@ -332,7 +371,7 @@ private fun QuestRow(
             Text(
                 "+${quest.exp} XP",
                 fontSize   = 9.sp,
-                color      = if (done) TextMuted else accentColor,
+                color      = if (claimed) TextMuted else accentColor,
                 fontWeight = FontWeight.ExtraBold
             )
         }

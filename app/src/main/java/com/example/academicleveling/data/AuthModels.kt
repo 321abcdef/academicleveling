@@ -324,3 +324,35 @@ data class AttemptListResponse(
 data class AttemptDetailResponse(
     val data: AttemptData
 )
+
+// ══════════════════════════════════════════════════════════════════════
+//  QUESTS
+// ══════════════════════════════════════════════════════════════════════
+
+data class QuestListResponse(val data: QuestListData?)
+data class QuestListData(val daily: List<QuestApiData>?, val weekly: List<QuestApiData>?)
+data class QuestApiData(
+    val id: Any?,
+    val title: String?,
+    val description: String?,
+    val type: String?,
+    val progress: Any?,
+    val target: Any?,
+    @SerializedName("completed_at") val completedAt: String?,
+    val percentage: Any?,
+    val rewards: QuestRewards?
+)
+data class QuestRewards(
+    val exp: Any?,
+    val coins: Any?,
+    @SerializedName("claimed_at") val claimedAt: String?
+)
+
+data class ClaimQuestResponse(
+    val message: String,
+    val data: ClaimQuestData
+)
+data class ClaimQuestData(
+    @SerializedName("exp_gained") val expGained: Int,
+    @SerializedName("coins_gained") val coinsGained: Int
+)

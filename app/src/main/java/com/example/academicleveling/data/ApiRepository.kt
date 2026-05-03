@@ -83,6 +83,12 @@ interface AcademicApi {
 
     @GET("attempts/{id}")
     fun getAttemptDetails(@Path("id") id: Int): Call<AttemptDetailResponse>
+
+    @GET("quests")
+    fun getQuests(): Call<QuestListResponse>
+
+    @POST("quests/{id}/claim")
+    fun claimQuestReward(@Path("id") id: Int): Call<ClaimQuestResponse>
 }
 
 object ApiRepository {
@@ -709,6 +715,47 @@ object ApiRepository {
                 }
             }
             override fun onFailure(call: Call<AttemptDetailResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  QUESTS
+    // ══════════════════════════════════════════════════════════════════════
+
+    fun getQuests(
+        onSuccess: (QuestListResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getQuests().enqueue(object : Callback<QuestListResponse> {
+            override fun onResponse(call: Call<QuestListResponse>, response: Response<QuestListResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<QuestListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun claimQuestReward(
+        questId: Int,
+        onSuccess: (ClaimQuestResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.claimQuestReward(questId).enqueue(object : Callback<ClaimQuestResponse> {
+            override fun onResponse(call: Call<ClaimQuestResponse>, response: Response<ClaimQuestResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to claim: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<ClaimQuestResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

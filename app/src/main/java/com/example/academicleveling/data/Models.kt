@@ -28,7 +28,19 @@ enum class ShopEffect { TIME_WARP, SECOND_CHANCE, HINT, STREAK_BANDAID, XP_BOOST
 data class Stats(val intStat: Int = 10, val wis: Int = 10, val foc: Int = 10, val sta: Int = 10)
 data class Perk(val label: String, val description: String)
 
-data class Quest(val id: Int, val title: String, val exp: Int, var done: Boolean = false)
+data class Quest(
+    val id: Int,
+    val title: String,
+    val exp: Int,
+    var done: Boolean = false,
+    val description: String = "",
+    val progress: Int = 0,
+    val target: Int = 1,
+    val coins: Int = 0,
+    val claimed: Boolean = false,
+    val isBonus: Boolean = false,
+    val type: String = ""
+)
 
 data class QuizQuestion(
     val id:          Int          = 0,

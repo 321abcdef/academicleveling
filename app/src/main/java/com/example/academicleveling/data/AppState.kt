@@ -60,17 +60,10 @@ object AppState {
     var quizHistory:    List<QuizHistoryEntry> by mutableStateOf(emptyList())
 
     // ── Quests ────────────────────────────────────────────────────────────
-    var quests: List<Quest> by mutableStateOf(listOf(
-        Quest(1, "STUDY FOR 30 MINUTES",     10),
-        Quest(2, "ANSWER A QUIZ",            15),
-        Quest(3, "COMPLETE 1 HOMEWORK TASK", 15),
-        Quest(4, "LOG A STUDY SESSION",      10)
-    ))
-    var weeklyQuests: List<Quest> by mutableStateOf(listOf(
-        Quest(101, "20 MINUTES READING FOR 4 DAYS", 60),
-        Quest(102, "COMPLETE 5 QUIZZES",            100),
-        Quest(103, "COMPLETE 3 DAILY QUESTS",       200)
-    ))
+    var quests: List<Quest> by mutableStateOf(emptyList())
+    var weeklyQuests: List<Quest> by mutableStateOf(emptyList())
+    var dailyBonusQuest: Quest? by mutableStateOf(null)
+    var weeklyBonusQuest: Quest? by mutableStateOf(null)
 
     // ── Quizzes ───────────────────────────────────────────────────────────
     var myQuizzes:        List<Quiz> by mutableStateOf(emptyList())
@@ -114,8 +107,8 @@ object AppState {
         loggedIn = true
         save()
 
-        // Immediately fetch stats
-        refreshUserStats()
+        // Immediately fetch all user data including quests
+        refreshUserData()
     }
 
     fun registerWithApi(response: RegisterResponse) {
@@ -131,8 +124,8 @@ object AppState {
         loggedIn = true
         save()
 
-        // Immediately fetch stats
-        refreshUserStats()
+        // Immediately fetch all user data including quests
+        refreshUserData()
     }
 
     fun refreshUserData(onComplete: () -> Unit = {}) {
@@ -151,10 +144,12 @@ object AppState {
                 // Fetch stats too
                 refreshUserStats(onComplete)
                 refreshSessionHistory()
+                refreshQuests()
             },
             onError = { 
                 refreshUserStats(onComplete)
                 refreshSessionHistory()
+                refreshQuests()
             }
         )
     }
@@ -381,18 +376,100 @@ object AppState {
     //  QUESTS
     // ══════════════════════════════════════════════════════════════════════
 
+    fun refreshQuests(onComplete: () -> Unit = {}) {
+        if (!loggedIn || token.isEmpty()) { onComplete(); return }
+        ApiRepository.getQuests(
+            onSuccess = { response ->
+                val data = response.data
+                val dailyList = data?.daily ?: emptyList()
+                val weeklyList = data?.weekly ?: emptyList()
+                
+                val allDaily = dailyList.mapNotNull { mapQuest(it) }
+                val allWeekly = weeklyList.mapNotNull { mapQuest(it) }
+
+                quests = allDaily.filter { !it.isBonus }
+                dailyBonusQuest = allDaily.find { it.isBonus }
+
+                weeklyQuests = allWeekly.filter { !it.isBonus }
+                weeklyBonusQuest = allWeekly.find { it.isBonus }
+
+                save()
+                onComplete()
+            },
+            onError = { onComplete() }
+        )
+    }
+
+    private fun mapQuest(api: QuestApiData): Quest {
+        val title = api.title ?: "Quest"
+        val exp = api.rewards?.exp?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        val coins = api.rewards?.coins?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        val isBonus = api.description?.contains("bonus", ignoreCase = true) == true
+        
+        val progress = api.progress?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        val target = api.target?.toString()?.toDoubleOrNull()?.toInt() ?: 1
+        val id = api.id?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+        
+        return Quest(
+            id = id,
+            title = title,
+            exp = exp,
+            done = api.completedAt != null,
+            description = api.description ?: "",
+            progress = progress,
+            target = target.coerceAtLeast(1),
+            coins = coins,
+            claimed = api.rewards?.claimedAt != null,
+            isBonus = isBonus,
+            type = api.type ?: ""
+        )
+    }
+
+    fun claimQuest(id: Int, onComplete: (Int, Int) -> Unit = { _, _ -> }) {
+        ApiRepository.claimQuestReward(id,
+            onSuccess = { response ->
+                val exp = response.data.expGained
+                val coins = response.data.coinsGained
+                addXP(exp)
+                addCoins(coins)
+                
+                // Update local state
+                quests = quests.map { if (it.id == id) it.copy(claimed = true, done = true) else it }
+                weeklyQuests = weeklyQuests.map { if (it.id == id) it.copy(claimed = true, done = true) else it }
+                if (dailyBonusQuest?.id == id) dailyBonusQuest = dailyBonusQuest?.copy(claimed = true, done = true)
+                if (weeklyBonusQuest?.id == id) weeklyBonusQuest = weeklyBonusQuest?.copy(claimed = true, done = true)
+                
+                save()
+                onComplete(exp, coins)
+            },
+            onError = { /* Handle error */ }
+        )
+    }
+
     fun completeQuest(id: Int) {
-        quests = quests.map { q ->
-            if (q.id == id && !q.done) { addXP(q.exp); q.copy(done = true) } else q
-        }
-        weeklyQuests = weeklyQuests.map { q ->
-            if (q.id == id && !q.done) { addXP(q.exp); q.copy(done = true) } else q
-        }
+        // Now tapping a quest tries to claim it
+        claimQuest(id)
         checkAchievements(); save()
     }
 
-    fun claimBonus(): Int       = if (quests.all { it.done }) { addXP(50); addCoins(20); 50 } else 0
-    fun claimWeeklyBonus(): Int = if (weeklyQuests.all { it.done }) { addXP(100); addCoins(50); 100 } else 0
+    fun claimBonus(): Int {
+        val bonus = dailyBonusQuest
+        if (bonus != null && bonus.done && !bonus.claimed) {
+            claimQuest(bonus.id)
+            return bonus.exp
+        }
+        return 0
+    }
+
+    fun claimWeeklyBonus(): Int {
+        val bonus = weeklyBonusQuest
+        if (bonus != null && bonus.done && !bonus.claimed) {
+            claimQuest(bonus.id)
+            return bonus.exp
+        }
+        return 0
+    }
+
     fun questsDone()  = quests.count { it.done }
     fun weeklyDone()  = weeklyQuests.count { it.done }
 
@@ -554,7 +631,7 @@ object AppState {
         quizHistory = (listOf(entry) + quizHistory).take(50)
         quizzesCompleted++
         // Removed local score-based coin reward. Relying on API response instead.
-        completeQuest(2)
+        refreshQuests()
         checkAchievements(); save()
     }
 
@@ -579,8 +656,7 @@ object AppState {
                 addCoins(earnedCoins)
                 
                 sessionHistory = (listOf(SessionEntry(isoDate(), mins, earnedExp)) + sessionHistory).take(50)
-                completeQuest(1)
-                completeQuest(4)
+                refreshQuests()
                 checkAchievements()
                 save()
                 onComplete(earnedExp, earnedCoins)
@@ -676,6 +752,8 @@ object AppState {
             putInt("hintc", hintCount);        putInt("sbc", streakBandaidCount)
             putString("quests",       gson.toJson(quests))
             putString("wquests",      gson.toJson(weeklyQuests))
+            putString("dbonus",       gson.toJson(dailyBonusQuest))
+            putString("wbonus",       gson.toJson(weeklyBonusQuest))
             putString("myQuizzes",    gson.toJson(myQuizzes))
             putString("achievements", gson.toJson(achievements))
             putString("sessions",     gson.toJson(sessionHistory))
@@ -711,6 +789,7 @@ object AppState {
         maxXP = xpForNext(level); rank = getRank(level)
 
         val questType   = object : TypeToken<List<Quest>>()            {}.type
+        val singleQuestType = object : TypeToken<Quest>()              {}.type
         val quizType    = object : TypeToken<List<Quiz>>()             {}.type
         val achType     = object : TypeToken<List<Achievement>>()      {}.type
         val sessionType = object : TypeToken<List<SessionEntry>>()     {}.type
@@ -718,6 +797,8 @@ object AppState {
 
         prefs.getString("quests",       null)?.let { s -> try { quests         = gson.fromJson(s, questType)   } catch (_: Exception) {} }
         prefs.getString("wquests",      null)?.let { s -> try { weeklyQuests   = gson.fromJson(s, questType)   } catch (_: Exception) {} }
+        prefs.getString("dbonus",       null)?.let { s -> try { dailyBonusQuest = gson.fromJson(s, singleQuestType) } catch (_: Exception) {} }
+        prefs.getString("wbonus",       null)?.let { s -> try { weeklyBonusQuest = gson.fromJson(s, singleQuestType) } catch (_: Exception) {} }
         prefs.getString("myQuizzes",    null)?.let { s -> try { myQuizzes      = gson.fromJson(s, quizType)    } catch (_: Exception) {} }
         prefs.getString("achievements", null)?.let { s -> try { achievements   = gson.fromJson(s, achType)     } catch (_: Exception) {} }
         prefs.getString("sessions",     null)?.let { s -> try { sessionHistory = gson.fromJson(s, sessionType) } catch (_: Exception) {} }
