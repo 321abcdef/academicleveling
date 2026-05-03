@@ -78,7 +78,7 @@ fun EnterQuizCodeScreen(
     }
     LaunchedEffect(searchFlow) {
         searchFlow.debounce(600L).collectLatest { query ->
-            if (query.length >= 2) {
+            if (query.length >= 8) {
                 isLoading = true
                 ApiRepository.getQuizzes(
                     search = query,
