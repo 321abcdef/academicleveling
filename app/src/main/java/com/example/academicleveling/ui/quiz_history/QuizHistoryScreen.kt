@@ -18,13 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import com.example.academicleveling.data.AppState
-import com.example.academicleveling.data.AnswerRecord
-import com.example.academicleveling.data.QuizHistoryEntry
+import com.example.academicleveling.data.ApiRepository
+import com.example.academicleveling.data.AttemptData
+import com.example.academicleveling.data.AttemptAnswerData
 import com.example.academicleveling.data.QuizType
 import com.example.academicleveling.ui.shared.*
 import com.example.academicleveling.ui.theme.*
@@ -36,26 +34,28 @@ fun QuizHistoryScreen(
     onBack:  () -> Unit,
     onRetry: ((String) -> Unit)? = null
 ) {
-    var expanded        by remember { mutableStateOf<Int?>(null) }
-    var showClearDialog by remember { mutableStateOf(false) }
-    var visibleCount    by remember { mutableStateOf(PAGE_SIZE) }
+    var history     by remember { mutableStateOf<List<AttemptData>>(emptyList()) }
+    var isLoading   by remember { mutableStateOf(true) }
+    var error       by remember { mutableStateOf<String?>(null) }
+    var expanded    by remember { mutableStateOf<Int?>(null) }
+    var visibleCount by remember { mutableStateOf(PAGE_SIZE) }
 
-    val history = AppState.quizHistory
-    LaunchedEffect(history.size) {
-        visibleCount = PAGE_SIZE
-        expanded     = null
+    fun loadHistory() {
+        isLoading = true
+        ApiRepository.getAttempts(
+            onSuccess = { resp ->
+                history = resp.data
+                isLoading = false
+            },
+            onError = { err ->
+                error = err
+                isLoading = false
+            }
+        )
     }
 
-    if (showClearDialog) {
-        ClearHistoryDialog(
-            count     = history.size,
-            onConfirm = {
-                AppState.quizHistory = emptyList()
-                AppState.save()
-                showClearDialog = false
-            },
-            onDismiss = { showClearDialog = false }
-        )
+    LaunchedEffect(Unit) {
+        loadHistory()
     }
 
     SpaceBackground {
@@ -101,33 +101,6 @@ fun QuizHistoryScreen(
                         }
                     }
                 }
-
-                if (history.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(DangerRed.copy(.12f))
-                            .border(1.dp, DangerRed.copy(.35f), RoundedCornerShape(8.dp))
-                            .clickable { SoundManager.click(); showClearDialog = true }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                null,
-                                tint = DangerRed,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                "CLEAR", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
-                                color = DangerRed, letterSpacing = 1.sp
-                            )
-                        }
-                    }
-                }
             }
 
             // Scrollable list
@@ -137,8 +110,17 @@ fun QuizHistoryScreen(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (history.isEmpty()) {
-                    // MATCHED: icon (Any), title (String), subtitle (String)
+                if (isLoading) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Gold)
+                    }
+                } else if (error != null) {
+                    EmptyState(
+                        icon = Icons.Default.Error,
+                        title = "Failed to load history",
+                        subtitle = error ?: "Unknown error"
+                    )
+                } else if (history.isEmpty()) {
                     EmptyState(
                         icon = Icons.Default.History,
                         title = "No quiz history yet!",
@@ -150,7 +132,7 @@ fun QuizHistoryScreen(
                             entry = entry,
                             isOpen = expanded == idx,
                             onToggle = { expanded = if (expanded == idx) null else idx },
-                            onRetry = onRetry?.let { cb -> { cb(entry.quizCode) } }
+                            onRetry = onRetry?.let { cb -> { cb(entry.quiz.quizCode) } }
                         )
                     }
 
@@ -161,7 +143,7 @@ fun QuizHistoryScreen(
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Color.White.copy(.06f))
                                 .border(1.dp, Color.White.copy(.12f), RoundedCornerShape(10.dp))
-                                .clickable { visibleCount += 5 } // Halimbawa ng PAGE_SIZE
+                                .clickable { visibleCount += 5 }
                                 .padding(vertical = 12.dp),
                             Alignment.Center
                         ) {
@@ -169,7 +151,6 @@ fun QuizHistoryScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                // Update: AutoMirrored version para iwas deprecation warning
                                 Icon(
                                     Icons.AutoMirrored.Filled.List,
                                     null,
@@ -190,63 +171,6 @@ fun QuizHistoryScreen(
             }
         }
     }
-    }
-// ─────────────────────────────────────────────────────────────────────────────
-//  CLEAR HISTORY DIALOG
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun ClearHistoryDialog(
-    count:     Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF1A1A2E))
-                .border(1.dp, DangerRed.copy(.4f), RoundedCornerShape(16.dp))
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                Modifier.size(56.dp).clip(RoundedCornerShape(28.dp)).background(DangerRed.copy(.15f)),
-                Alignment.Center
-            ) {
-                Icon(Icons.Default.Delete, null, tint = DangerRed, modifier = Modifier.size(28.dp))
-            }
-            Text("Clear History?", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
-            Text(
-                "This will permanently delete all $count quiz record${if (count != 1) "s" else ""}. This cannot be undone.",
-                fontSize = 12.sp, color = TextSecondary, lineHeight = 18.sp, textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(4.dp))
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(DangerRed)
-                    .clickable { onConfirm() }
-                    .padding(vertical = 13.dp),
-                Alignment.Center
-            ) {
-                Text("YES, CLEAR ALL", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
-                    color = Color.White, letterSpacing = 0.5.sp)
-            }
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(Color.White.copy(.06f))
-                    .border(1.dp, Color.White.copy(.15f), RoundedCornerShape(10.dp))
-                    .clickable { onDismiss() }
-                    .padding(vertical = 13.dp),
-                Alignment.Center
-            ) {
-                Text("CANCEL", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
-                    color = TextSecondary, letterSpacing = 0.5.sp)
-            }
-        }
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,18 +179,38 @@ private fun ClearHistoryDialog(
 
 @Composable
 private fun HistoryEntryCard(
-    entry:    QuizHistoryEntry,
+    entry:    AttemptData,
     isOpen:   Boolean,
     onToggle: () -> Unit,
     onRetry:  (() -> Unit)? = null
 ) {
-    val pct   = if (entry.total == 0) 0f else entry.score.toFloat() / entry.total
+    val total = entry.quiz.questionsCount
+    val pct   = if (total == 0) 0f else entry.score.toFloat() / total
     val grade = when {
         pct >= .9f -> "S"; pct >= .8f -> "A"; pct >= .7f -> "B"
         pct >= .6f -> "C"; pct >= .5f -> "D"; else        -> "F"
     }
     val gradeColor = when (grade) {
         "S","A" -> Gold; "B","C" -> Teal; else -> DangerRed
+    }
+
+    var details by remember { mutableStateOf<AttemptData?>(null) }
+    var isLoadingDetails by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isOpen) {
+        if (isOpen && details == null) {
+            isLoadingDetails = true
+            ApiRepository.getAttemptDetails(
+                attemptId = entry.id,
+                onSuccess = { resp ->
+                    details = resp.data
+                    isLoadingDetails = false
+                },
+                onError = {
+                    isLoadingDetails = false
+                }
+            )
+        }
     }
 
     Column(
@@ -280,17 +224,17 @@ private fun HistoryEntryCard(
             Arrangement.SpaceBetween, Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(entry.quizTitle, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                Text(entry.quiz.title, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CalendarToday, null, tint = TextMuted, modifier = Modifier.size(10.dp))
-                    Text(entry.date, fontSize = 10.sp, color = TextMuted)
-                    if (entry.quizCode.isNotBlank()) {
+                    Text(entry.completedAt ?: entry.startedAt, fontSize = 10.sp, color = TextMuted)
+                    if (entry.quiz.quizCode.isNotBlank()) {
                         Box(
                             Modifier.clip(RoundedCornerShape(3.dp))
                                 .background(Teal.copy(.12f))
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
-                            Text(entry.quizCode, fontSize = 9.sp, color = Teal, fontWeight = FontWeight.ExtraBold)
+                            Text(entry.quiz.quizCode, fontSize = 9.sp, color = Teal, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }
@@ -298,7 +242,7 @@ private fun HistoryEntryCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text(grade, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = gradeColor)
-                    Text("${entry.score}/${entry.total}", fontSize = 11.sp, color = TextSecondary)
+                    Text("${entry.score}/$total", fontSize = 11.sp, color = TextSecondary)
                 }
                 Icon(
                     if (isOpen) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -318,10 +262,18 @@ private fun HistoryEntryCard(
                         color = TextSecondary, letterSpacing = 1.sp
                     )
                 }
-                entry.answers.forEachIndexed { i, record ->
-                    QuestionReviewRow(i + 1, record)
+
+                if (isLoadingDetails) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Gold, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                } else {
+                    details?.answers?.forEachIndexed { i, record ->
+                        QuestionReviewRow(i + 1, record)
+                    }
                 }
-                if (onRetry != null && entry.quizCode.isNotBlank()) {
+
+                if (onRetry != null && entry.quiz.quizCode.isNotBlank()) {
                     Spacer(Modifier.height(4.dp))
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -346,29 +298,12 @@ private fun HistoryEntryCard(
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun QuestionReviewRow(num: Int, record: AnswerRecord) {
-    val bg     = if (record.wasRight) Color(0xFF0A1A0A) else Color(0xFF1A0A0A)
-    val accent = if (record.wasRight) SuccessGreen else DangerRed
+private fun QuestionReviewRow(num: Int, record: AttemptAnswerData) {
+    val bg     = if (record.isCorrect) Color(0xFF0A1A0A) else Color(0xFF1A0A0A)
+    val accent = if (record.isCorrect) SuccessGreen else DangerRed
 
-    // ── Resolve correct answer display ─────────────────────────────────────
-    // identAnswer is always populated for all question types from PlayQuizScreen.
-    // Fallback for True/False old entries only.
-    val correctAnswerDisplay = when {
-        record.identAnswer.isNotBlank() -> record.identAnswer
-        record.type == QuizType.TRUE_FALSE -> if (record.correct == 0) "True" else "False"
-        else -> "—"
-    }
-
-    // ── Resolve user's answer display ──────────────────────────────────────
-    // chosenText is always populated from PlayQuizScreen for all types.
-    // Fallback for True/False old entries only.
-    val userAnswerDisplay = when {
-        record.chosenText.isNotBlank() -> record.chosenText
-        record.chosen == -1            -> "No answer / Time up"
-        record.type == QuizType.TRUE_FALSE ->
-            if (record.chosen == 0) "True" else "False"
-        else -> "—"
-    }
+    val correctAnswerDisplay = record.correctAnswer
+    val userAnswerDisplay = record.answerText ?: "No answer / Time up"
 
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -387,12 +322,12 @@ private fun QuestionReviewRow(num: Int, record: AnswerRecord) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        if (record.wasRight) Icons.Default.Check else Icons.Default.Close,
+                        if (record.isCorrect) Icons.Default.Check else Icons.Default.Close,
                         null, tint = Color.White, modifier = Modifier.size(10.dp)
                     )
                     Spacer(Modifier.width(3.dp))
                     Text(
-                        if (record.wasRight) "CORRECT" else "WRONG",
+                        if (record.isCorrect) "CORRECT" else "WRONG",
                         fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -400,7 +335,7 @@ private fun QuestionReviewRow(num: Int, record: AnswerRecord) {
         }
 
         // Question text
-        Text(record.question, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary, lineHeight = 19.sp)
+        Text(record.questionText, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary, lineHeight = 19.sp)
         Spacer(Modifier.height(2.dp))
 
         // User's answer
@@ -428,7 +363,7 @@ private fun QuestionReviewRow(num: Int, record: AnswerRecord) {
         }
 
         // Warning for wrong answers
-        if (!record.wasRight) {
+        if (!record.isCorrect) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Warning, null, tint = DangerRed.copy(.8f), modifier = Modifier.size(11.dp))
                 Spacer(Modifier.width(4.dp))

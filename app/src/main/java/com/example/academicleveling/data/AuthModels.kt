@@ -220,3 +220,48 @@ data class SubmitQuizRewards(
     val exp: Int,
     val coins: Int
 )
+
+// ── Attempts History ─────────────────────────────────────────────────────
+
+data class AttemptQuizData(
+    val id: Int,
+    @SerializedName("quiz_code") val quizCode: String,
+    val title: String,
+    val description: String,
+    val subject: String,
+    @SerializedName("grade_level") val gradeLevel: String,
+    val type: String,
+    val difficulty: String,
+    @SerializedName("timer_mode") val timerMode: String,
+    @SerializedName("is_question_shuffled") val isQuestionShuffled: Boolean,
+    @SerializedName("is_choices_shuffled") val isChoicesShuffled: Boolean,
+    @SerializedName("is_public") val isPublic: Boolean,
+    @SerializedName("questions_count") val questionsCount: Int,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String
+)
+
+data class AttemptAnswerData(
+    @SerializedName("question_text") val questionText: String,
+    @SerializedName("correct_answer") val correctAnswer: String,
+    @SerializedName("answer_text") val answerText: String?,
+    @SerializedName("is_correct") val isCorrect: Boolean
+)
+
+data class AttemptData(
+    val id: Int,
+    val score: Int,
+    @SerializedName("started_at") val startedAt: String,
+    @SerializedName("completed_at") val completedAt: String?,
+    val quiz: AttemptQuizData,
+    val answers: List<AttemptAnswerData>? = null
+)
+
+data class AttemptListResponse(
+    val data: List<AttemptData>,
+    val meta: PaginationMeta? = null
+)
+
+data class AttemptDetailResponse(
+    val data: AttemptData
+)

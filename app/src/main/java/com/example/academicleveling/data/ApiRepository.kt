@@ -58,6 +58,12 @@ interface AcademicApi {
 
     @POST("attempts/{id}/submit-all")
     fun submitAttempt(@Path("id") id: Int, @Body request: SubmitQuizRequest): Call<SubmitQuizResponse>
+
+    @GET("attempts")
+    fun getAttempts(@Query("page") page: Int? = null): Call<AttemptListResponse>
+
+    @GET("attempts/{id}")
+    fun getAttemptDetails(@Path("id") id: Int): Call<AttemptDetailResponse>
 }
 
 object ApiRepository {
@@ -501,6 +507,44 @@ object ApiRepository {
                 }
             }
             override fun onFailure(call: Call<SubmitQuizResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getAttempts(
+        page: Int? = null,
+        onSuccess: (AttemptListResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getAttempts(page).enqueue(object : Callback<AttemptListResponse> {
+            override fun onResponse(call: Call<AttemptListResponse>, response: Response<AttemptListResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to fetch history: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<AttemptListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getAttemptDetails(
+        attemptId: Int,
+        onSuccess: (AttemptDetailResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getAttemptDetails(attemptId).enqueue(object : Callback<AttemptDetailResponse> {
+            override fun onResponse(call: Call<AttemptDetailResponse>, response: Response<AttemptDetailResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to fetch details: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<AttemptDetailResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
