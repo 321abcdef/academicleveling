@@ -147,8 +147,6 @@ private fun ShopTab() {
 
 @Composable
 private fun PowerUpBagTab() {
-    var bandaidMsg by remember { mutableStateOf("") }
-
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -156,15 +154,10 @@ private fun PowerUpBagTab() {
         CoinsBanner()
         SectionLabel("YOUR INVENTORY")
 
-        if (bandaidMsg.isNotBlank()) FeedbackBanner(bandaidMsg, SuccessGreen, Icons.Default.Star)
-
         PowerUpRow(shopItemIcon(ShopEffect.TIME_WARP),      shopItemColor(ShopEffect.TIME_WARP),      "Time Warp",       AppState.timeWarpCount)
         PowerUpRow(shopItemIcon(ShopEffect.SECOND_CHANCE),  shopItemColor(ShopEffect.SECOND_CHANCE),  "50/50",           AppState.secondChanceCount)
         PowerUpRow(shopItemIcon(ShopEffect.HINT),           shopItemColor(ShopEffect.HINT),           "Hint",            AppState.hintCount)
-        PowerUpRow(shopItemIcon(ShopEffect.STREAK_BANDAID), shopItemColor(ShopEffect.STREAK_BANDAID), "Streak Band-aid", AppState.streakBandaidCount,
-            actionLabel = if (AppState.streakBandaidCount > 0) "USE" else null,
-            onAction = { if (AppState.useStreakBandaid()) { SoundManager.claim(); bandaidMsg = "Streak Repaired!" } }
-        )
+        
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -245,6 +238,5 @@ private fun stockOf(effect: ShopEffect) = when (effect) {
     ShopEffect.TIME_WARP      -> AppState.timeWarpCount
     ShopEffect.SECOND_CHANCE  -> AppState.secondChanceCount
     ShopEffect.HINT           -> AppState.hintCount
-    ShopEffect.STREAK_BANDAID -> AppState.streakBandaidCount
     ShopEffect.XP_BOOST       -> 0
 }

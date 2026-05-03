@@ -38,7 +38,6 @@ object AppState {
     var timeWarpCount      by mutableStateOf(0)
     var secondChanceCount  by mutableStateOf(0)
     var hintCount          by mutableStateOf(0)
-    var streakBandaidCount by mutableStateOf(0)
 
     // ── Tracking ──────────────────────────────────────────────────────────
     var streak           by mutableStateOf(0)
@@ -73,7 +72,6 @@ object AppState {
         ShopItem(1, "Time Warp",       "Adds +30s to your quiz timer.",               100, ShopEffect.TIME_WARP),
         ShopItem(2, "50/50",           "Eliminates 2 wrong options on MC questions.",  200, ShopEffect.SECOND_CHANCE),
         ShopItem(3, "Hint",            "Reveals the correct answer once.",             500, ShopEffect.HINT),
-        ShopItem(4, "Streak Band-aid", "Repairs a broken daily streak.",               400, ShopEffect.STREAK_BANDAID),
         ShopItem(5, "XP Boost",        "Instant +100 XP to your level.",               300, ShopEffect.XP_BOOST)
     )
 
@@ -337,16 +335,8 @@ object AppState {
             ShopEffect.TIME_WARP      -> timeWarpCount      = (timeWarpCount + 1).coerceAtMost(item.maxStack)
             ShopEffect.SECOND_CHANCE  -> secondChanceCount  = (secondChanceCount + 1).coerceAtMost(item.maxStack)
             ShopEffect.HINT           -> hintCount          = (hintCount + 1).coerceAtMost(item.maxStack)
-            ShopEffect.STREAK_BANDAID -> streakBandaidCount = (streakBandaidCount + 1).coerceAtMost(item.maxStack)
             ShopEffect.XP_BOOST       -> addXP(100)
         }
-        save(); return true
-    }
-
-    fun useStreakBandaid(): Boolean {
-        if (streakBandaidCount <= 0) return false
-        streakBandaidCount--; streakAtRisk = false
-        if (streak == 0) streak = 1
         save(); return true
     }
 
@@ -776,7 +766,7 @@ object AppState {
             putBoolean("streakAtRisk", streakAtRisk)
             putInt("coins", coins)
             putInt("twc",   timeWarpCount);    putInt("scc", secondChanceCount)
-            putInt("hintc", hintCount);        putInt("sbc", streakBandaidCount)
+            putInt("hintc", hintCount)
             putString("quests",       gson.toJson(quests))
             putString("wquests",      gson.toJson(weeklyQuests))
             putString("dbonus",       gson.toJson(dailyBonusQuest))
@@ -812,7 +802,6 @@ object AppState {
         timeWarpCount      = prefs.getInt("twc",   0)
         secondChanceCount  = prefs.getInt("scc",   0)
         hintCount          = prefs.getInt("hintc", 0)
-        streakBandaidCount = prefs.getInt("sbc",   0)
         maxXP = xpForNext(level); rank = getRank(level)
 
         val questType   = object : TypeToken<List<Quest>>()            {}.type

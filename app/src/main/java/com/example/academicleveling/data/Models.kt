@@ -19,7 +19,7 @@ enum class EquipSlot { WEAPON, ARMOR, ACC1, ACC2 }
 enum class Difficulty { EASY, MEDIUM, HARD }
 enum class QuizTimerMode { NONE, WHOLE_QUIZ, PER_QUESTION }
 enum class QuizType { MULTIPLE_CHOICE, TRUE_FALSE, IDENTIFICATION, MIX }
-enum class ShopEffect { TIME_WARP, SECOND_CHANCE, HINT, STREAK_BANDAID, XP_BOOST }
+enum class ShopEffect { TIME_WARP, SECOND_CHANCE, HINT, XP_BOOST }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CORE MODELS

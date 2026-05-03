@@ -16,7 +16,6 @@ fun shopItemIcon(effect: ShopEffect): ImageVector = when (effect) {
     ShopEffect.TIME_WARP      -> Icons.Default.HourglassEmpty  // ⌛ core
     ShopEffect.SECOND_CHANCE  -> Icons.Default.FilterNone      // two overlapping squares
     ShopEffect.HINT           -> Icons.Default.Lightbulb        // 💡 core
-    ShopEffect.STREAK_BANDAID -> Icons.Default.Favorite         // ❤️ core
     ShopEffect.XP_BOOST       -> Icons.Default.FlashOn          // ⚡ core
 }
 
@@ -24,7 +23,6 @@ fun shopItemColor(effect: ShopEffect): Color = when (effect) {
     ShopEffect.TIME_WARP      -> Blue
     ShopEffect.SECOND_CHANCE  -> Purple
     ShopEffect.HINT           -> Gold
-    ShopEffect.STREAK_BANDAID -> SuccessGreen
     ShopEffect.XP_BOOST       -> Accent
 }
 

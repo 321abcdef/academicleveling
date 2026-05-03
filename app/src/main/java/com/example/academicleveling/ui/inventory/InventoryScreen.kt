@@ -58,14 +58,8 @@ private fun ShopTab() {
             items = listOf(
                 PowerUpInfo(shopItemIcon(ShopEffect.TIME_WARP),      shopItemColor(ShopEffect.TIME_WARP),      "Time Warp",     AppState.timeWarpCount),
                 PowerUpInfo(shopItemIcon(ShopEffect.SECOND_CHANCE),  shopItemColor(ShopEffect.SECOND_CHANCE),  "50/50",         AppState.secondChanceCount),
-                PowerUpInfo(shopItemIcon(ShopEffect.HINT),           shopItemColor(ShopEffect.HINT),           "Hint",          AppState.hintCount),
-                PowerUpInfo(shopItemIcon(ShopEffect.STREAK_BANDAID), shopItemColor(ShopEffect.STREAK_BANDAID), "Streak Fix",    AppState.streakBandaidCount)
-            ),
-            onUseBandaid = {
-                if (AppState.useStreakBandaid()) {
-                    SoundManager.claim(); streakMsg = "Streak repaired!"
-                }
-            }
+                PowerUpInfo(shopItemIcon(ShopEffect.HINT),           shopItemColor(ShopEffect.HINT),           "Hint",          AppState.hintCount)
+            )
         )
 
         SectionLabel("SHOP")
@@ -122,8 +116,7 @@ private data class PowerUpInfo(
 
 @Composable
 private fun PowerUpStockRow(
-    items:        List<PowerUpInfo>,
-    onUseBandaid: () -> Unit
+    items:        List<PowerUpInfo>
 ) {
     Column(
         Modifier.fillMaxWidth()
@@ -163,15 +156,6 @@ private fun PowerUpStockRow(
                     Text(item.name, fontSize = 8.sp, color = TextMuted)
                 }
             }
-        }
-        if (AppState.streakBandaidCount > 0) {
-            TealButton(
-                label     = "USE STREAK BAND-AID",
-                onClick   = onUseBandaid,
-                modifier  = Modifier.fillMaxWidth(),
-                color     = Color(0xFF0D0D1A),
-                textColor = TextPrimary
-            )
         }
     }
 }
