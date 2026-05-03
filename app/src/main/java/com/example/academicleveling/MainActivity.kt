@@ -159,7 +159,7 @@ private data class NavItem(
 private val NAV_ITEMS = listOf(
     NavItem(Screen.QUESTS,  Icons.Default.Home, "Home"),
     // Dito, R.drawable.ic_sword lang, wag mong lagyan ng vectorResource
-    NavItem(Screen.BAZAAR,  R.drawable.ic_sword, "Weapons"),
+    NavItem(Screen.BAZAAR,  R.drawable.ic_sword, "Shop"),
     NavItem(Screen.DUNGEON, Icons.Default.Quiz, "Quizzes"),
     NavItem(Screen.TIMER,   Icons.Default.Timer, "Timer"),
     NavItem(Screen.PROFILE, Icons.Default.Person, "Profile")
