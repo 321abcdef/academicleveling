@@ -91,29 +91,33 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val imageRes = when (equippedWeapon?.name) {
-                        "Scholar's Pen"    -> R.drawable.sword
-                        "Ancient Tome"     -> R.drawable.book
-                        "Sage's Glasses"   -> R.drawable.sage
-                        "Master's Compass" -> R.drawable.compass
-                        "Dragon Quill"     -> R.drawable.quill
+                if (equippedWeapon != null) {
+                    val imageRes = when (equippedWeapon.name) {
+                        "Scholar's Pen"     -> R.drawable.sword
+                        "Ancient Tome"      -> R.drawable.book
+                        "Sage's Glasses"    -> R.drawable.sage
+                        "Master's Compass"  -> R.drawable.compass
+                        "Dragon Quill"      -> R.drawable.quill
                         "Ethereal Grimoire" -> R.drawable.grimoire
-                        else -> R.drawable.sword
+                        else                -> null
                     }
-
-                    Image(
-                        painter = painterResource(id = imageRes),
-                        contentDescription = "Equipped Weapon",
-                        modifier = Modifier.size(150.dp),
-                        contentScale = ContentScale.Fit
-                    )
+                    if (imageRes != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter            = painterResource(id = imageRes),
+                                contentDescription = "Equipped: ${equippedWeapon.name}",
+                                modifier           = Modifier.size(150.dp),
+                                contentScale       = ContentScale.Fit
+                            )
+                        }
+                    }
                 }
+                // No weapon equipped → no image shown
 
                 Column(
                     modifier = Modifier
@@ -129,9 +133,9 @@ fun PlayerProgressScreen(onBack: () -> Unit) {
                             item = item,
                             unlocked = unlocked,
                             equipped = (item.slot == EquipSlot.WEAPON && AppState.equipment.weapon?.id == item.id) ||
-                                       (item.slot == EquipSlot.ARMOR  && AppState.equipment.armor?.id == item.id) ||
-                                       (item.slot == EquipSlot.ACC1   && AppState.equipment.acc1?.id == item.id) ||
-                                       (item.slot == EquipSlot.ACC2   && AppState.equipment.acc2?.id == item.id),
+                                    (item.slot == EquipSlot.ARMOR  && AppState.equipment.armor?.id == item.id) ||
+                                    (item.slot == EquipSlot.ACC1   && AppState.equipment.acc1?.id == item.id) ||
+                                    (item.slot == EquipSlot.ACC2   && AppState.equipment.acc2?.id == item.id),
                             requiredLevel = item.levelReq,
                             onEquip = {
                                 if (unlocked) AppState.equip(item)
