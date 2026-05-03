@@ -5,9 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.academicleveling.data.AppState
 import com.example.academicleveling.data.ApiRepository
 import com.example.academicleveling.data.AttemptData
 import com.example.academicleveling.data.AttemptAnswerData
@@ -27,36 +29,39 @@ import com.example.academicleveling.data.QuizType
 import com.example.academicleveling.ui.shared.*
 import com.example.academicleveling.ui.theme.*
 
-private const val PAGE_SIZE = 10
-
 @Composable
 fun QuizHistoryScreen(
     onBack:  () -> Unit,
     onRetry: ((String) -> Unit)? = null
 ) {
-    var history     by remember { mutableStateOf<List<AttemptData>>(emptyList()) }
-    var isLoading   by remember { mutableStateOf(true) }
+    var isLoading   by remember { mutableStateOf(false) }
     var error       by remember { mutableStateOf<String?>(null) }
     var expanded    by remember { mutableStateOf<Int?>(null) }
-    var visibleCount by remember { mutableStateOf(PAGE_SIZE) }
+    val listState    = rememberLazyListState()
 
-    fun loadHistory() {
-        isLoading = true
-        ApiRepository.getAttempts(
-            onSuccess = { resp ->
-                // Filter out attempts where the quiz info is missing (possibly deleted)
-                history = resp.data.filter { it.quiz != null }
-                isLoading = false
-            },
-            onError = { err ->
-                error = err
-                isLoading = false
-            }
-        )
-    }
+    val history = AppState.attemptsHistory
 
     LaunchedEffect(Unit) {
-        loadHistory()
+        isLoading = true
+        AppState.refreshAttempts {
+            isLoading = false
+        }
+    }
+
+    // Infinite Scroll Logic
+    val canLoadMore = AppState.canLoadMoreAttempts
+    val isMoreLoading = AppState.isAttemptsLoading && history.isNotEmpty()
+
+    LaunchedEffect(listState, canLoadMore) {
+        snapshotFlow {
+            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            (lastItem?.index ?: 0) to AppState.isAttemptsLoading
+        }.collect { (lastIndex, isApiLoading) ->
+            val totalItems = listState.layoutInfo.totalItemsCount
+            if (lastIndex >= totalItems - 5 && canLoadMore && !isApiLoading) {
+                AppState.loadMoreAttempts()
+            }
+        }
     }
 
     SpaceBackground {
@@ -105,30 +110,37 @@ fun QuizHistoryScreen(
             }
 
             // Scrollable list
-            Column(
-                Modifier.fillMaxWidth().weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (isLoading) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Gold)
-                    }
-                } else if (error != null) {
+            if (isLoading && history.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Gold)
+                }
+            } else if (error != null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EmptyState(
                         icon = Icons.Default.Error,
                         title = "Failed to load history",
                         subtitle = error ?: "Unknown error"
                     )
-                } else if (history.isEmpty()) {
+                }
+            } else if (history.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EmptyState(
                         icon = Icons.Default.History,
                         title = "No quiz history yet!",
                         subtitle = "Complete a quiz to see results here"
                     )
-                } else {
-                    history.take(visibleCount).forEachIndexed { idx, entry ->
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    itemsIndexed(
+                        items = history,
+                        key = { _, entry -> entry.id }
+                    ) { idx, entry ->
                         HistoryEntryCard(
                             entry = entry,
                             isOpen = expanded == idx,
@@ -137,38 +149,16 @@ fun QuizHistoryScreen(
                         )
                     }
 
-                    if (visibleCount < history.size) {
-                        val remaining = history.size - visibleCount
-                        Box(
-                            Modifier.fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White.copy(.06f))
-                                .border(1.dp, Color.White.copy(.12f), RoundedCornerShape(10.dp))
-                                .clickable { visibleCount += 5 }
-                                .padding(vertical = 12.dp),
-                            Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.List,
-                                    null,
-                                    tint = Color.Gray,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    "Show $remaining more",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    if (isMoreLoading) {
+                        item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), Alignment.Center) {
+                                CircularProgressIndicator(color = Gold, modifier = Modifier.size(32.dp))
                             }
                         }
                     }
+
+                    item { Spacer(Modifier.height(80.dp)) }
                 }
-                Spacer(Modifier.height(80.dp))
             }
         }
     }

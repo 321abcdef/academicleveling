@@ -78,6 +78,12 @@ object AppState {
     var canLoadMoreMyQuizzes by mutableStateOf(false)
     var isMyQuizzesLoading   by mutableStateOf(false)
 
+    var attemptsHistory: List<AttemptData> by mutableStateOf(emptyList())
+    var attemptsCurrentPage by mutableStateOf(1)
+    var attemptsLastPage    by mutableStateOf(1)
+    var canLoadMoreAttempts by mutableStateOf(false)
+    var isAttemptsLoading   by mutableStateOf(false)
+
     val SHOP_ITEMS: List<ShopItem> = listOf(
         ShopItem(1, "Time Warp",       "Adds +30s to your quiz timer.",               100, ShopEffect.TIME_WARP),
         ShopItem(2, "50/50",           "Eliminates 2 wrong options on MC questions.",  200, ShopEffect.SECOND_CHANCE),
@@ -660,6 +666,48 @@ object AppState {
         (myQuizzes + communityQuizzes).firstOrNull {
             it.code.equals(code.trim(), ignoreCase = true)
         }
+
+    fun refreshAttempts(onComplete: (List<AttemptData>) -> Unit = {}) {
+        isAttemptsLoading = true
+        ApiRepository.getAttempts(
+            page = 1,
+            onSuccess = { response ->
+                attemptsHistory = response.data.filter { it.quiz != null }
+                attemptsCurrentPage = response.meta?.currentPage ?: 1
+                attemptsLastPage = response.meta?.lastPage ?: 1
+                canLoadMoreAttempts = attemptsCurrentPage < attemptsLastPage
+                isAttemptsLoading = false
+                onComplete(attemptsHistory)
+            },
+            onError = {
+                isAttemptsLoading = false
+                onComplete(emptyList())
+            }
+        )
+    }
+
+    fun loadMoreAttempts(onComplete: (List<AttemptData>) -> Unit = {}) {
+        if (isAttemptsLoading || !canLoadMoreAttempts) return
+
+        isAttemptsLoading = true
+        val nextPage = attemptsCurrentPage + 1
+        ApiRepository.getAttempts(
+            page = nextPage,
+            onSuccess = { response ->
+                val newAttempts = response.data.filter { it.quiz != null }
+                attemptsHistory = attemptsHistory + newAttempts
+                attemptsCurrentPage = response.meta?.currentPage ?: nextPage
+                attemptsLastPage = response.meta?.lastPage ?: attemptsLastPage
+                canLoadMoreAttempts = attemptsCurrentPage < attemptsLastPage
+                isAttemptsLoading = false
+                onComplete(newAttempts)
+            },
+            onError = {
+                isAttemptsLoading = false
+                onComplete(emptyList())
+            }
+        )
+    }
 
     fun recordQuizResult(quiz: Quiz, score: Int, answers: List<AnswerRecord>) {
         val entry = QuizHistoryEntry(
