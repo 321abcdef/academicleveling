@@ -8,6 +8,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -55,6 +56,9 @@ interface AcademicApi {
 
     @GET("quizzes/mine")
     fun getMyQuizzes(@Query("page") page: Int? = null): Call<QuizListResponse>
+
+    @DELETE("quizzes/{id}")
+    fun deleteQuiz(@Path("id") id: Int): Call<Void>
 
     @POST("quizzes/{id}/attempts")
     fun startAttempt(@Path("id") id: Int): Call<StartAttemptResponse>
@@ -358,6 +362,25 @@ object ApiRepository {
                 }
             }
             override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun deleteQuiz(
+        quizId: Int,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.deleteQuiz(quizId).enqueue(object : Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                if (response.isSuccessful) {
+                    onSuccess()
+                } else {
+                    onError("Failed to delete quiz: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<Void>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })

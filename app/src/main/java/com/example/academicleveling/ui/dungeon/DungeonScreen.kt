@@ -78,7 +78,12 @@ fun DungeonScreen(
                 }
             },
             onEdit   = { q -> SoundManager.navigate(); editingQuiz = q; nav = DNav.EDIT },
-            onDelete = { q -> AppState.deleteQuiz(q.id) }
+            onDelete = { q -> 
+                AppState.deleteQuiz(
+                    id = q.id,
+                    onError = { /* Log or show error if needed */ }
+                )
+            }
         )
 
         DNav.COMMUNITY -> CommunityScreen(

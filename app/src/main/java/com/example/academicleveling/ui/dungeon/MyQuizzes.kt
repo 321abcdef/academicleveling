@@ -139,14 +139,10 @@ fun MyQuizzesScreen(
                     QuizCard(quiz = quiz, showCode = true) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             IconActionChip(Icons.Default.PlayArrow, "PLAY", SuccessGreen) {
-                                AppState.loadQuizFullInfo(quiz.id) { fullQuiz ->
-                                    if (fullQuiz != null) onPlay(fullQuiz)
-                                }
+                                onPlay(quiz)
                             }
                             IconActionChip(Icons.Default.Edit, "EDIT", Blue) {
-                                AppState.loadQuizFullInfo(quiz.id) { fullQuiz ->
-                                    if (fullQuiz != null) onEdit(fullQuiz)
-                                }
+                                onEdit(quiz)
                             }
                             IconActionChip(Icons.Default.Delete, "DELETE", DangerRed) { deleteTarget = quiz }
                         }
