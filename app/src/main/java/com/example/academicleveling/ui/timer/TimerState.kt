@@ -8,7 +8,7 @@ import kotlinx.coroutines.*
 
 // Only POMODORO (focus) gives XP/coins. Breaks are just breaks.
 enum class TimerMode(val label: String, val seconds: Int, val isFocus: Boolean) {
-    POMODORO   ("Pomodoro",    1 * 60, true),
+    POMODORO   ("Pomodoro",    25 * 60, true),
     SHORT_BREAK("Short Break",  5 * 60, false),
     LONG_BREAK ("Long Break",  15 * 60, false)
 }
