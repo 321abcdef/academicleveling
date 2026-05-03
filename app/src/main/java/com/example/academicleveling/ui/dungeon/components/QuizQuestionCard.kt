@@ -59,7 +59,7 @@ fun QuizQuestionCard(
 
     // ── Multiple Choice / True-False ───────────────────────────────────────
     if (q.type == QuizType.MULTIPLE_CHOICE || q.type == QuizType.TRUE_FALSE) {
-        val opts = if (q.type == QuizType.TRUE_FALSE) listOf("True", "False") else q.opts
+        val opts = q.opts
         opts.forEachIndexed { i, opt ->
             val isEliminated = i in eliminatedOptions && !submitted
             val isSelected   = selectedOption == i

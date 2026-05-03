@@ -52,6 +52,12 @@ interface AcademicApi {
 
     @GET("quizzes/{id}")
     fun getQuiz(@Path("id") id: Int): Call<QuizFullResponse>
+
+    @POST("quizzes/{id}/attempts")
+    fun startAttempt(@Path("id") id: Int): Call<StartAttemptResponse>
+
+    @POST("attempts/{id}/submit-all")
+    fun submitAttempt(@Path("id") id: Int, @Body request: SubmitQuizRequest): Call<SubmitQuizResponse>
 }
 
 object ApiRepository {
@@ -447,5 +453,56 @@ object ApiRepository {
         onError: (String) -> Unit
     ) {
         android.util.Log.d("ApiRepository", "[STUB] claimAchievement(id=$achievementId)")
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  QUIZ ATTEMPTS
+    // ══════════════════════════════════════════════════════════════════════
+
+    fun startQuizAttempt(
+        quizId: Int,
+        onSuccess: (Int) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.startAttempt(quizId).enqueue(object : Callback<StartAttemptResponse> {
+            override fun onResponse(call: Call<StartAttemptResponse>, response: Response<StartAttemptResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it.attemptId) } ?: onError("Empty response")
+                } else {
+                    onError("Failed to start attempt: ${response.code()}")
+                }
+            }
+            override fun onFailure(call: Call<StartAttemptResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun submitQuizAttempt(
+        attemptId: Int,
+        answers: List<SubmitAnswerItem>,
+        onSuccess: (SubmitQuizResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val request = SubmitQuizRequest(answers)
+        api.submitAttempt(attemptId, request).enqueue(object : Callback<SubmitQuizResponse> {
+            override fun onResponse(call: Call<SubmitQuizResponse>, response: Response<SubmitQuizResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response")
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to submit quiz: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+            override fun onFailure(call: Call<SubmitQuizResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
     }
 }

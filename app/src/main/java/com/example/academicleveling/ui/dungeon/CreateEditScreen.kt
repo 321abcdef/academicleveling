@@ -68,6 +68,7 @@ fun CreateEditScreen(
             creator          = AppState.name.ifBlank { "Player" },
             creatorName      = AppState.name.ifBlank { "Player" },
             questions        = questions,
+            questionsCount   = questions.size,
             exp              = questions.size * 20,
             quizType         = quizType,
             timerMode        = timerMode,
@@ -342,9 +343,9 @@ fun CreateEditScreen(
                             ActionChip("+ ADD", Teal) {
                                 val newType = if (quizType == QuizType.MIX) QuizType.MULTIPLE_CHOICE else quizType
                                 val blank = when (newType) {
-                                    QuizType.TRUE_FALSE     -> QuizQuestion("", emptyList(), 0, "", QuizType.TRUE_FALSE)
-                                    QuizType.IDENTIFICATION -> QuizQuestion("", emptyList(), 0, "", QuizType.IDENTIFICATION)
-                                    else                    -> QuizQuestion("", listOf("", "", "", ""), 0, "", QuizType.MULTIPLE_CHOICE)
+                                    QuizType.TRUE_FALSE     -> QuizQuestion(id = 0, q = "", opts = emptyList(), optIds = emptyList(), correct = 0, exp = "", type = QuizType.TRUE_FALSE, identAnswer = "")
+                                    QuizType.IDENTIFICATION -> QuizQuestion(id = 0, q = "", opts = emptyList(), optIds = emptyList(), correct = 0, exp = "", type = QuizType.IDENTIFICATION, identAnswer = "")
+                                    else                    -> QuizQuestion(id = 0, q = "", opts = listOf("", "", "", ""), optIds = emptyList(), correct = 0, exp = "", type = QuizType.MULTIPLE_CHOICE, identAnswer = "")
                                 }
                                 questions     = questions + blank
                                 editingQIndex = questions.lastIndex

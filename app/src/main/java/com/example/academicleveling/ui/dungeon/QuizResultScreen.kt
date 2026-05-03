@@ -27,7 +27,8 @@ import com.example.academicleveling.ui.theme.*
 fun QuizResultScreen(
     quiz:    Quiz,
     answers: List<AnswerRecord>,
-    onBack:  () -> Unit
+    onBack:  () -> Unit,
+    rewards: com.example.academicleveling.data.SubmitQuizRewards? = null
 ) {
     val score = answers.count { it.wasRight }
     val total = answers.size
@@ -40,7 +41,9 @@ fun QuizResultScreen(
     val gradeColor = when (grade) {
         "S", "A" -> Gold; "B", "C" -> Teal; else -> DangerRed
     }
-    val coinsEarned = score * 5
+    
+    val coinsEarned = rewards?.coins ?: (score * 5)
+    val xpEarned = rewards?.exp ?: quiz.exp
 
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
@@ -71,7 +74,7 @@ fun QuizResultScreen(
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         RewardChip("+${coinsEarned} COINS", Gold,   Icons.Default.Paid)
-                        RewardChip("+${quiz.exp} XP",       Teal,   Icons.Default.Star)
+                        RewardChip("+${xpEarned} XP",       Teal,   Icons.Default.Star)
                     }
                     Spacer(Modifier.height(20.dp))
                     Button(

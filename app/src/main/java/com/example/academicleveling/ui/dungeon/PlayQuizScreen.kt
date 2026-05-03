@@ -36,12 +36,17 @@ fun PlayQuizScreen(
         val qs = if (quiz.shuffleQuestions) quiz.questions.shuffled() else quiz.questions
         if (quiz.shuffleOptions) {
             qs.map { q ->
-                if (q.type == QuizType.MULTIPLE_CHOICE && q.opts.isNotEmpty()) {
-                    val indexed  = q.opts.mapIndexed { i, opt -> i to opt }
-                    val shuffled = indexed.shuffled()
+                if ((q.type == QuizType.MULTIPLE_CHOICE || q.type == QuizType.TRUE_FALSE) && q.opts.isNotEmpty()) {
+                    // We must shuffle opts and optIds TOGETHER to keep them aligned
+                    val combined = q.opts.mapIndexed { i, opt ->
+                        val id = q.optIds.getOrNull(i)
+                        Triple(i, opt, id)
+                    }
+                    val shuffled = combined.shuffled()
                     q.copy(
                         opts    = shuffled.map { it.second },
-                        correct = shuffled.indexOfFirst { it.first == q.correct }
+                        optIds  = shuffled.mapNotNull { it.third },
+                        correct = shuffled.indexOfFirst { it.first == q.correct }.coerceAtLeast(0)
                     )
                 } else q
             }
@@ -60,8 +65,54 @@ fun PlayQuizScreen(
     var eliminatedOptions by remember { mutableStateOf(setOf<Int>()) }
     var fiftyFiftyUsed    by remember { mutableStateOf(false) }
 
+    var attemptId         by remember { mutableIntStateOf(-1) }
+    var isSubmitting      by remember { mutableStateOf(false) }
+    var rewards           by remember { mutableStateOf<SubmitQuizRewards?>(null) }
+
     // Reset whole quiz timer if quiz changes
     var wholeQuizSecs by remember(quiz.id) { mutableIntStateOf(quiz.timerSeconds) }
+
+    // Start Attempt on Init
+    LaunchedEffect(quiz.id) {
+        com.example.academicleveling.data.ApiRepository.startQuizAttempt(
+            quizId = quiz.id,
+            onSuccess = { id -> attemptId = id },
+            onError = { /* Log error if needed */ }
+        )
+    }
+
+    fun submitQuiz() {
+        if (attemptId == -1 || isSubmitting) return
+        isSubmitting = true
+
+        val submitAnswers = answers.mapIndexed { index, record ->
+            val q = questions[index]
+            SubmitAnswerItem(
+                questionId = q.id,
+                choiceId = if (q.type != QuizType.IDENTIFICATION && record.chosen != -1) q.optIds.getOrNull(record.chosen) else null,
+                answerText = if (q.type == QuizType.IDENTIFICATION) record.chosenText else null
+            )
+        }
+
+        com.example.academicleveling.data.ApiRepository.submitQuizAttempt(
+            attemptId = attemptId,
+            answers = submitAnswers,
+            onSuccess = { response ->
+                rewards = response.data.rewards
+                AppState.addXP(response.data.rewards.exp)
+                AppState.addCoins(response.data.rewards.coins)
+                AppState.recordQuizResult(quiz, response.data.score, answers)
+                showResults = true
+                isSubmitting = false
+            },
+            onError = {
+                // Fallback to local save if API fails
+                AppState.recordQuizResult(quiz, answers.count { it.wasRight }, answers)
+                showResults = true
+                isSubmitting = false
+            }
+        )
+    }
 
     fun correctTextFor(q: QuizQuestion): String = when (q.type) {
         QuizType.MULTIPLE_CHOICE -> q.opts.getOrElse(q.correct) { "" }
@@ -115,8 +166,7 @@ fun PlayQuizScreen(
                 wholeQuizSecs--
             }
             if (wholeQuizSecs == 0 && !showResults) {
-                AppState.recordQuizResult(quiz, answers.count { it.wasRight }, answers)
-                showResults = true
+                submitQuiz()
             }
         }
     }
@@ -147,7 +197,7 @@ fun PlayQuizScreen(
     }
 
     if (showResults) {
-        QuizResultScreen(quiz = quiz, answers = answers, onBack = onBack)
+        QuizResultScreen(quiz = quiz, answers = answers, onBack = onBack, rewards = rewards)
         return
     }
 
@@ -262,9 +312,9 @@ fun PlayQuizScreen(
                             submitted = true
                             val correctText = correctTextFor(q)
                             val chosenText = when (q.type) {
-                                QuizType.MULTIPLE_CHOICE -> q.opts.getOrElse(selectedOption ?: -1) { "" }
-                                QuizType.TRUE_FALSE      -> if (selectedOption == 0) "True" else "False"
-                                else                     -> identInput.trim()
+                                QuizType.MULTIPLE_CHOICE,
+                                QuizType.TRUE_FALSE -> q.opts.getOrElse(selectedOption ?: -1) { "" }
+                                else                -> identInput.trim()
                             }
                             val isRight = when (q.type) {
                                 QuizType.IDENTIFICATION -> identInput.trim().equals(correctText.trim(), ignoreCase = true)
@@ -273,8 +323,8 @@ fun PlayQuizScreen(
                             if (isRight) {
                                 correctStreak++
                                 if (correctStreak % 3 == 0) {
-                                    AppState.addCoins(3)
-                                    streakBonusMsg = "$correctStreak streak!  +3 coins"
+                                    // Removed local streak coin reward. Relying on API response instead.
+                                    streakBonusMsg = "$correctStreak streak!"
                                 }
                             } else {
                                 correctStreak = 0
@@ -299,13 +349,13 @@ fun PlayQuizScreen(
                 } else {
                     val isLast = qIndex == questions.lastIndex
                     TealButton(
-                        label    = if (isLast) "FINISH QUIZ" else "NEXT QUESTION →",
+                        label    = if (isSubmitting) "SUBMITTING..." else if (isLast) "FINISH QUIZ" else "NEXT QUESTION →",
+                        enabled  = !isSubmitting,
                         modifier = Modifier.fillMaxWidth(),
                         onClick  = {
                             SoundManager.click()
                             if (isLast) {
-                                AppState.recordQuizResult(quiz, answers.count { it.wasRight }, answers)
-                                showResults = true
+                                submitQuiz()
                             } else {
                                 qIndex++
                                 selectedOption    = null

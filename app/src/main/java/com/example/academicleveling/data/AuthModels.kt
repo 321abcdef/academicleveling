@@ -186,3 +186,37 @@ data class QuizFullData(
 data class QuizFullResponse(
     val data: QuizFullData
 )
+
+// ── Quiz Attempts ───────────────────────────────────────────────────────
+
+data class StartAttemptResponse(
+    val message: String,
+    @SerializedName("attempt_id") val attemptId: Int
+)
+
+data class SubmitAnswerItem(
+    @SerializedName("question_id") val questionId: Int,
+    @SerializedName("choice_id") val choiceId: Int? = null,
+    @SerializedName("answer_text") val answerText: String? = null
+)
+
+data class SubmitQuizRequest(
+    val answers: List<SubmitAnswerItem>
+)
+
+data class SubmitQuizResponse(
+    val message: String,
+    val data: SubmitQuizResultData
+)
+
+data class SubmitQuizResultData(
+    val score: Int,
+    @SerializedName("total_questions") val totalQuestions: Int,
+    @SerializedName("correct_answers") val correctAnswers: Int,
+    val rewards: SubmitQuizRewards
+)
+
+data class SubmitQuizRewards(
+    val exp: Int,
+    val coins: Int
+)

@@ -31,8 +31,10 @@ data class Perk(val label: String, val description: String)
 data class Quest(val id: Int, val title: String, val exp: Int, var done: Boolean = false)
 
 data class QuizQuestion(
+    val id:          Int          = 0,
     val q:           String,
     val opts:        List<String> = emptyList(),
+    val optIds:      List<Int>    = emptyList(),
     val correct:     Int          = 0,
     val exp:         String       = "",
     val type:        QuizType     = QuizType.MULTIPLE_CHOICE,
@@ -222,40 +224,3 @@ val DEFAULT_INVENTORY: List<Item> = listOf(
 )
 
 val DEFAULT_EQUIPMENT: Equipment = Equipment()
-
-// SA LOOB NG AppState
-fun buildCommunityQuizzes(): List<Quiz> = (9001..9033).map { id ->
-    val o = CommunityData.getOwnerFor(id)
-    val qList = CommunityData.getQuestionsFor(id)
-    Quiz(
-        id               = id,
-        title            = o.title,
-        creator          = o.name,
-        creatorName      = o.name,
-        code             = o.code,
-        subject          = o.subject,
-        gradeLevel       = o.grade,
-        difficulty       = o.diff,
-        timerMode        = o.timerMode,
-        timerSeconds     = o.timerSecs,
-        questionsCount   = qList.size,
-        exp              = qList.size * 20,
-        dateCreated      = CommunityData.getDateFor(id),
-        quizType         = QuizType.MIX,
-        questions        = qList
-    )
-}
-
-private fun createQuiz(
-    id: Int, title: String, creator: String, code: String, subject: String,
-    grade: String, diff: Difficulty, tMode: QuizTimerMode, tSecs: Int
-): Quiz {
-    val qList = CommunityData.getQuestionsFor(id)
-    return Quiz(
-        id = id, title = title, creator = creator, creatorName = creator, code = code,
-        subject = subject, gradeLevel = grade, difficulty = diff, timerMode = tMode,
-        timerSeconds = tSecs, questionsCount = qList.size, exp = qList.size * 20,
-        dateCreated = CommunityData.getDateFor(id), // ITO YUNG UNIQUE DATE
-        quizType = QuizType.MIX, questions = qList
-    )
-}

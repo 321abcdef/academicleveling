@@ -74,7 +74,7 @@ object AppState {
 
     // ── Quizzes ───────────────────────────────────────────────────────────
     var myQuizzes:        List<Quiz> by mutableStateOf(emptyList())
-    var communityQuizzes: List<Quiz> by mutableStateOf(buildCommunityQuizzes())
+    var communityQuizzes: List<Quiz> by mutableStateOf(emptyList())
 
     val SHOP_ITEMS: List<ShopItem> = listOf(
         ShopItem(1, "Time Warp",       "Adds +30s to your quiz timer.",               100, ShopEffect.TIME_WARP),
@@ -263,6 +263,7 @@ object AppState {
                     },
                     questions = apiQuiz.questions.map { q ->
                         QuizQuestion(
+                            id = q.id,
                             q = q.questionText,
                             type = when(q.type.lowercase().trim()) {
                                 "multiple_choice" -> QuizType.MULTIPLE_CHOICE
@@ -273,7 +274,8 @@ object AppState {
                             },
                             identAnswer = q.correctAnswer ?: "",
                             correct = q.choices.indexOfFirst { it.isCorrect }.coerceAtLeast(0),
-                            opts = q.choices.map { it.choiceText }
+                            opts = q.choices.map { it.choiceText },
+                            optIds = q.choices.map { it.id }
                         )
                     }
                 )
@@ -409,7 +411,7 @@ object AppState {
         )
         quizHistory = (listOf(entry) + quizHistory).take(50)
         quizzesCompleted++
-        addCoins(score * 5)
+        // Removed local score-based coin reward. Relying on API response instead.
         completeQuest(2)
         checkAchievements(); save()
     }
