@@ -1,6 +1,15 @@
 package com.example.academicleveling.ui.dungeon
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.academicleveling.data.AppState
 import com.example.academicleveling.data.Quiz
 import com.example.academicleveling.ui.quiz_history.QuizHistoryScreen
@@ -19,6 +28,7 @@ fun DungeonScreen(
     var selectedQuiz      by remember { mutableStateOf<Quiz?>(null) }
     var editingQuiz       by remember { mutableStateOf<Quiz?>(null) }
     var playReturnNav     by remember { mutableStateOf(DNav.HUB) }
+    var isLoadingQuiz     by remember { mutableStateOf(false) }
 
     LaunchedEffect(startTarget) {
         when (startTarget) {
@@ -33,6 +43,17 @@ fun DungeonScreen(
         }
     }
 
+    if (isLoadingQuiz) {
+        Box(Modifier.fillMaxSize().background(com.example.academicleveling.ui.theme.BgPrimary), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = com.example.academicleveling.ui.theme.Teal)
+                Spacer(Modifier.height(12.dp))
+                Text("Loading quiz content...", color = Color.White, fontSize = 14.sp)
+            }
+        }
+        return
+    }
+
     when (nav) {
         DNav.HUB -> DungeonHub(
             onMy        = { SoundManager.navigate(); nav = DNav.MY },
@@ -44,12 +65,17 @@ fun DungeonScreen(
         DNav.MY -> MyQuizzesScreen(
             onBack   = { SoundManager.navigate(); nav = DNav.HUB },
             onCreate = { SoundManager.navigate(); nav = DNav.CREATE },
-            onPlay   = {
-                q ->
+            onPlay   = { q ->
                 SoundManager.navigate()
-                selectedQuiz = q
-                playReturnNav = DNav.MY
-                nav = DNav.PLAY
+                isLoadingQuiz = true
+                AppState.loadQuizFullInfo(q.id) { fullQuiz ->
+                    isLoadingQuiz = false
+                    if (fullQuiz != null) {
+                        selectedQuiz = fullQuiz
+                        playReturnNav = DNav.MY
+                        nav = DNav.PLAY
+                    }
+                }
             },
             onEdit   = { q -> SoundManager.navigate(); editingQuiz = q; nav = DNav.EDIT },
             onDelete = { q -> AppState.deleteQuiz(q.id) }
@@ -57,22 +83,32 @@ fun DungeonScreen(
 
         DNav.COMMUNITY -> CommunityScreen(
             onBack = { SoundManager.navigate(); nav = DNav.HUB },
-            onPlay = {
-                q ->
+            onPlay = { q ->
                 SoundManager.navigate()
-                selectedQuiz = q
-                playReturnNav = DNav.COMMUNITY
-                nav = DNav.PLAY
+                isLoadingQuiz = true
+                AppState.loadQuizFullInfo(q.id) { fullQuiz ->
+                    isLoadingQuiz = false
+                    if (fullQuiz != null) {
+                        selectedQuiz = fullQuiz
+                        playReturnNav = DNav.COMMUNITY
+                        nav = DNav.PLAY
+                    }
+                }
             }
         )
 
         DNav.CODE -> EnterQuizCodeScreen(
             onBack = { SoundManager.navigate(); nav = DNav.HUB },
-            onFound = {
-                quiz ->
-                selectedQuiz = quiz
-                playReturnNav = DNav.CODE
-                nav = DNav.PLAY
+            onFound = { quiz ->
+                isLoadingQuiz = true
+                AppState.loadQuizFullInfo(quiz.id) { fullQuiz ->
+                    isLoadingQuiz = false
+                    if (fullQuiz != null) {
+                        selectedQuiz = fullQuiz
+                        playReturnNav = DNav.CODE
+                        nav = DNav.PLAY
+                    }
+                }
             }
         )
 

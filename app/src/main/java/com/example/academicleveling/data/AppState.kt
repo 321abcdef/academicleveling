@@ -197,6 +197,11 @@ object AppState {
                             "question" -> QuizTimerMode.PER_QUESTION
                             else -> QuizTimerMode.NONE
                         },
+                        timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                            "quiz" -> apiQuiz.questionsCount * 30
+                            "question" -> 30
+                            else -> 0
+                        },
                         subject = apiQuiz.subject,
                         gradeLevel = apiQuiz.gradeLevel,
                         difficulty = when(apiQuiz.difficulty.lowercase()) {
@@ -214,6 +219,67 @@ object AppState {
                 onComplete(quizzes)
             },
             onError = { onComplete(emptyList()) }
+        )
+    }
+
+    fun loadQuizFullInfo(quizId: Int, onComplete: (Quiz?) -> Unit) {
+        ApiRepository.getQuizFullInfo(
+            quizId = quizId,
+            onSuccess = { response ->
+                val apiQuiz = response.data
+                val mappedQuiz = Quiz(
+                    id = apiQuiz.id,
+                    title = apiQuiz.title,
+                    creator = apiQuiz.user.name,
+                    creatorName = apiQuiz.user.name,
+                    questionsCount = apiQuiz.questionsCount,
+                    exp = apiQuiz.questionsCount * 20,
+                    subject = apiQuiz.subject,
+                    gradeLevel = apiQuiz.gradeLevel,
+                    code = apiQuiz.quizCode,
+                    dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+                    shuffleQuestions = apiQuiz.isQuestionShuffled,
+                    shuffleOptions = apiQuiz.isChoicesShuffled,
+                    quizType = when(apiQuiz.type.lowercase().trim()) {
+                        "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                        "true_false"      -> QuizType.TRUE_FALSE
+                        "identification"  -> QuizType.IDENTIFICATION
+                        else              -> QuizType.MIX
+                    },
+                    timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                        "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                        "question" -> QuizTimerMode.PER_QUESTION
+                        else -> QuizTimerMode.NONE
+                    },
+                    timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                        "quiz" -> apiQuiz.questionsCount * 30
+                        "question" -> 30
+                        else -> 0
+                    },
+                    difficulty = when(apiQuiz.difficulty.lowercase()) {
+                        "easy" -> Difficulty.EASY
+                        "hard" -> Difficulty.HARD
+                        else -> Difficulty.MEDIUM
+                    },
+                    questions = apiQuiz.questions.map { q ->
+                        QuizQuestion(
+                            q = q.questionText,
+                            type = when(q.type.lowercase().trim()) {
+                                "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                                "true_false"      -> QuizType.TRUE_FALSE
+                                "identification"  -> QuizType.IDENTIFICATION
+                                "mixed"           -> QuizType.MIX
+                                else              -> QuizType.MIX
+                            },
+                            identAnswer = q.correctAnswer ?: "",
+                            correct = q.choices.indexOfFirst { it.isCorrect }.coerceAtLeast(0),
+                            opts = q.choices.map { it.choiceText }
+                        )
+                    }
+                )
+                onComplete(mappedQuiz)
+            },
+            onError = { onComplete(null) }
         )
     }
 

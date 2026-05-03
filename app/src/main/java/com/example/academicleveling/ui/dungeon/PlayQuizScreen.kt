@@ -56,10 +56,12 @@ fun PlayQuizScreen(
     var showResults       by remember { mutableStateOf(false) }
     var correctStreak     by remember { mutableStateOf(0) }
     var streakBonusMsg    by remember { mutableStateOf("") }
-    var wholeQuizSecs     by remember { mutableStateOf(quiz.timerSeconds) }
-    var perQuestionSecs   by remember { mutableStateOf(quiz.timerSeconds) }
+    var perQuestionSecs   by remember { mutableIntStateOf(quiz.timerSeconds) }
     var eliminatedOptions by remember { mutableStateOf(setOf<Int>()) }
     var fiftyFiftyUsed    by remember { mutableStateOf(false) }
+
+    // Reset whole quiz timer if quiz changes
+    var wholeQuizSecs by remember(quiz.id) { mutableIntStateOf(quiz.timerSeconds) }
 
     fun correctTextFor(q: QuizQuestion): String = when (q.type) {
         QuizType.MULTIPLE_CHOICE -> q.opts.getOrElse(q.correct) { "" }
@@ -106,8 +108,8 @@ fun PlayQuizScreen(
         }
     }
 
-    LaunchedEffect(quiz.timerMode, showResults) {
-        if (quiz.timerMode == QuizTimerMode.WHOLE_QUIZ && !showResults) {
+    LaunchedEffect(quiz.id, showResults) {
+        if (quiz.timerMode == QuizTimerMode.WHOLE_QUIZ && !showResults && wholeQuizSecs > 0) {
             while (wholeQuizSecs > 0 && !showResults) {
                 kotlinx.coroutines.delay(1000L)
                 wholeQuizSecs--
@@ -119,25 +121,27 @@ fun PlayQuizScreen(
         }
     }
 
-    LaunchedEffect(qIndex, quiz.timerMode) {
+    LaunchedEffect(qIndex, quiz.id) {
         if (quiz.timerMode == QuizTimerMode.PER_QUESTION && !submitted) {
             perQuestionSecs = quiz.timerSeconds
-            while (perQuestionSecs > 0 && !submitted) {
-                kotlinx.coroutines.delay(1000L)
-                perQuestionSecs--
-            }
-            if (perQuestionSecs == 0 && !submitted) {
-                submitted = true
-                val q = questions[qIndex]
-                answers = answers + AnswerRecord(
-                    question    = q.q,
-                    chosen      = -1,
-                    correct     = q.correct,
-                    wasRight    = false,
-                    type        = q.type,
-                    identAnswer = correctTextFor(q),
-                    chosenText  = "(time up)"
-                )
+            if (perQuestionSecs > 0) {
+                while (perQuestionSecs > 0 && !submitted) {
+                    kotlinx.coroutines.delay(1000L)
+                    perQuestionSecs--
+                }
+                if (perQuestionSecs == 0 && !submitted) {
+                    submitted = true
+                    val q = questions[qIndex]
+                    answers = answers + AnswerRecord(
+                        question    = q.q,
+                        chosen      = -1,
+                        correct     = q.correct,
+                        wasRight    = false,
+                        type        = q.type,
+                        identAnswer = correctTextFor(q),
+                        chosenText  = "(time up)"
+                    )
+                }
             }
         }
     }

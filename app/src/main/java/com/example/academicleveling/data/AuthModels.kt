@@ -146,3 +146,43 @@ data class QuizListResponse(
     val data: List<QuizApiData>,
     val meta: PaginationMeta? = null
 )
+
+data class ChoiceApiData(
+    val id: Int,
+    @SerializedName("choice_text") val choiceText: String,
+    @SerializedName("is_correct") val isCorrect: Boolean
+)
+
+data class QuestionApiData(
+    val id: Int,
+    @SerializedName("question_text") val questionText: String,
+    val type: String,
+    @SerializedName("correct_answer") val correctAnswer: String?,
+    val points: Int,
+    val order: Int,
+    val choices: List<ChoiceApiData>
+)
+
+data class QuizFullData(
+    val id: Int,
+    val user: QuizCreator,
+    @SerializedName("quiz_code") val quizCode: String,
+    val title: String,
+    val description: String,
+    val subject: String,
+    @SerializedName("grade_level") val gradeLevel: String,
+    val type: String,
+    val difficulty: String,
+    @SerializedName("timer_mode") val timerMode: String,
+    @SerializedName("is_question_shuffled") val isQuestionShuffled: Boolean,
+    @SerializedName("is_choices_shuffled") val isChoicesShuffled: Boolean,
+    @SerializedName("is_public") val isPublic: Boolean,
+    @SerializedName("questions_count") val questionsCount: Int,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String,
+    val questions: List<QuestionApiData>
+)
+
+data class QuizFullResponse(
+    val data: QuizFullData
+)

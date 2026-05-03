@@ -11,6 +11,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface AcademicApi {
@@ -48,6 +49,9 @@ interface AcademicApi {
         @Query("grade_level") gradeLevel: String? = null,
         @Query("page") page: Int? = null
     ): Call<QuizListResponse>
+
+    @GET("quizzes/{id}")
+    fun getQuiz(@Path("id") id: Int): Call<QuizFullResponse>
 }
 
 object ApiRepository {
@@ -317,6 +321,33 @@ object ApiRepository {
             }
 
             override fun onFailure(call: Call<QuizListResponse>, t: Throwable) {
+                onError(t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    fun getQuizFullInfo(
+        quizId: Int,
+        onSuccess: (QuizFullResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        api.getQuiz(quizId).enqueue(object : Callback<QuizFullResponse> {
+            override fun onResponse(call: Call<QuizFullResponse>, response: Response<QuizFullResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) } ?: onError("Empty response body")
+                } else {
+                    val errorMsg: String = try {
+                        val errorBody = response.errorBody()?.string()
+                        val apiError = gson.fromJson(errorBody, ApiErrorResponse::class.java)
+                        apiError.message
+                    } catch (e: Exception) {
+                        "Failed to fetch quiz details: ${response.code()}"
+                    }
+                    onError(errorMsg)
+                }
+            }
+
+            override fun onFailure(call: Call<QuizFullResponse>, t: Throwable) {
                 onError(t.message ?: "Unknown error")
             }
         })
