@@ -21,10 +21,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,8 +38,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.academicleveling.data.ApiRepository
 import com.example.academicleveling.data.AppState
+import com.example.academicleveling.data.Difficulty
 import com.example.academicleveling.data.Quiz
+import com.example.academicleveling.data.QuizTimerMode
+import com.example.academicleveling.data.QuizType
+import com.example.academicleveling.ui.shared.ActionChip
 import com.example.academicleveling.ui.shared.SoundManager
 import com.example.academicleveling.ui.shared.SpaceBackground
 import com.example.academicleveling.ui.shared.SubPageBar
@@ -48,7 +55,12 @@ import com.example.academicleveling.ui.theme.Teal
 import com.example.academicleveling.ui.theme.TextMuted
 import com.example.academicleveling.ui.theme.TextPrimary
 import com.example.academicleveling.ui.theme.TextSecondary
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 
+@OptIn(FlowPreview::class)
 @Composable
 fun EnterQuizCodeScreen(
     onBack: () -> Unit,
@@ -56,6 +68,71 @@ fun EnterQuizCodeScreen(
 ) {
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var searchResults by remember { mutableStateOf<List<Quiz>>(emptyList()) }
+
+    // Debounced search logic
+    val searchFlow = remember { MutableStateFlow("") }
+    LaunchedEffect(code) {
+        searchFlow.value = code
+    }
+    LaunchedEffect(searchFlow) {
+        searchFlow.debounce(600L).collectLatest { query ->
+            if (query.length >= 2) {
+                isLoading = true
+                ApiRepository.getQuizzes(
+                    search = query,
+                    onSuccess = { response ->
+                        isLoading = false
+                        searchResults = response.data.map { apiQuiz ->
+                            Quiz(
+                                id = apiQuiz.id,
+                                title = apiQuiz.title,
+                                description = apiQuiz.description,
+                                creator = apiQuiz.user.name,
+                                creatorName = apiQuiz.user.name,
+                                questions = emptyList(),
+                                questionsCount = apiQuiz.questionsCount,
+                                exp = apiQuiz.questionsCount * 20,
+                                quizType = when(apiQuiz.type.lowercase().trim()) {
+                                    "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                                    "true_false"      -> QuizType.TRUE_FALSE
+                                    "identification"  -> QuizType.IDENTIFICATION
+                                    else              -> QuizType.MIX
+                                },
+                                timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                                    "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                                    "question" -> QuizTimerMode.PER_QUESTION
+                                    else -> QuizTimerMode.NONE
+                                },
+                                timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                                    "quiz" -> apiQuiz.questionsCount * 30
+                                    "question" -> 30
+                                    else -> 0
+                                },
+                                subject = apiQuiz.subject,
+                                gradeLevel = apiQuiz.gradeLevel,
+                                difficulty = when(apiQuiz.difficulty.lowercase()) {
+                                    "easy" -> Difficulty.EASY
+                                    "hard" -> Difficulty.HARD
+                                    else -> Difficulty.MEDIUM
+                                },
+                                code = apiQuiz.quizCode,
+                                dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+                                shuffleQuestions = apiQuiz.isQuestionShuffled,
+                                shuffleOptions = apiQuiz.isChoicesShuffled
+                            )
+                        }
+                    },
+                    onError = {
+                        isLoading = false
+                    }
+                )
+            } else {
+                searchResults = emptyList()
+            }
+        }
+    }
 
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
@@ -84,13 +161,14 @@ fun EnterQuizCodeScreen(
                         OutlinedTextField(
                             value = code,
                             onValueChange = {
-                                code = it.uppercase().take(8)
+                                code = it.uppercase()
                                 error = ""
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("e.g. CPP001", color = TextMuted) },
+                            placeholder = { Text("Search by title or code...", color = TextMuted) },
                             singleLine = true,
                             isError = error.isNotBlank(),
+                            enabled = !isLoading,
                             shape = RoundedCornerShape(10.dp),
                             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -111,23 +189,97 @@ fun EnterQuizCodeScreen(
                                 onClick = onBack,
                                 modifier = Modifier.weight(1f),
                                 color = Color(0xFF0D0D1A),
-                                textColor = TextPrimary
+                                textColor = TextPrimary,
+                                enabled = !isLoading
                             )
                             TealButton(
                                 label = "FIND QUIZ",
                                 onClick = {
-                                    val quiz = AppState.findByCode(code)
-                                    if (quiz != null) {
-                                        SoundManager.navigate()
-                                        onFound(quiz)
-                                    } else {
-                                        SoundManager.error()
-                                        error = "Code not found. Check and try again."
-                                    }
+                                    isLoading = true
+                                    error = ""
+                                    ApiRepository.getQuizzes(
+                                        search = code,
+                                        onSuccess = { response ->
+                                            isLoading = false
+                                            val apiQuiz = response.data.find { it.quizCode.equals(code, ignoreCase = true) }
+                                            if (apiQuiz != null) {
+                                                SoundManager.navigate()
+                                                // Map to local Quiz model
+                                                val mapped = Quiz(
+                                                    id = apiQuiz.id,
+                                                    title = apiQuiz.title,
+                                                    description = apiQuiz.description,
+                                                    creator = apiQuiz.user.name,
+                                                    creatorName = apiQuiz.user.name,
+                                                    questions = emptyList(),
+                                                    questionsCount = apiQuiz.questionsCount,
+                                                    exp = apiQuiz.questionsCount * 20,
+                                                    quizType = when(apiQuiz.type.lowercase().trim()) {
+                                                        "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                                                        "true_false"      -> QuizType.TRUE_FALSE
+                                                        "identification"  -> QuizType.IDENTIFICATION
+                                                        else              -> QuizType.MIX
+                                                    },
+                                                    timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                                                        "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                                                        "question" -> QuizTimerMode.PER_QUESTION
+                                                        else -> QuizTimerMode.NONE
+                                                    },
+                                                    timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                                                        "quiz" -> apiQuiz.questionsCount * 30
+                                                        "question" -> 30
+                                                        else -> 0
+                                                    },
+                                                    subject = apiQuiz.subject,
+                                                    gradeLevel = apiQuiz.gradeLevel,
+                                                    difficulty = when(apiQuiz.difficulty.lowercase()) {
+                                                        "easy" -> Difficulty.EASY
+                                                        "hard" -> Difficulty.HARD
+                                                        else -> Difficulty.MEDIUM
+                                                    },
+                                                    code = apiQuiz.quizCode,
+                                                    dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+                                                    shuffleQuestions = apiQuiz.isQuestionShuffled,
+                                                    shuffleOptions = apiQuiz.isChoicesShuffled
+                                                )
+                                                onFound(mapped)
+                                            } else {
+                                                SoundManager.error()
+                                                error = "Code not found. Check and try again."
+                                            }
+                                        },
+                                        onError = { err ->
+                                            isLoading = false
+                                            error = "Search failed: $err"
+                                            SoundManager.error()
+                                        }
+                                    )
                                 },
                                 modifier = Modifier.weight(1f),
-                                enabled = code.isNotBlank()
+                                enabled = code.isNotBlank() && !isLoading
                             )
+                        }
+                        
+                        if (isLoading && searchResults.isEmpty()) {
+                            Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = Teal, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            }
+                        }
+
+                        if (searchResults.isNotEmpty()) {
+                            Text("SEARCH RESULTS", color = Teal, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            searchResults.forEach { quiz ->
+                                QuizCard(quiz = quiz, showCode = true) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("By: ${quiz.creator}", fontSize = 11.sp, color = TextSecondary)
+                                        ActionChip("PLAY", SuccessGreen) { onFound(quiz) }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
