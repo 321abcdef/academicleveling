@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- This centers a specific 160dp x 160dp box for your logo -->
+    <item
+        android:width="100dp"
+        android:height="100dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/my_splash_logo"
+            android:gravity="fill" />
+    </item>
+</layer-list>
