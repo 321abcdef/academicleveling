@@ -10,13 +10,25 @@ import com.google.gson.reflect.TypeToken
 
 object AppState {
 
-    private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
+    private lateinit var prefs: SharedPreferences        // global prefs (token, last email)
+    private lateinit var accountPrefs: SharedPreferences // per-account prefs
     private val gson = Gson()
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("academic_leveling_v7", Context.MODE_PRIVATE)
-        load()
-        if (loggedIn) refreshUserData()
+        appContext = context.applicationContext
+        prefs = context.getSharedPreferences("academic_leveling_global", Context.MODE_PRIVATE)
+        val lastEmail = prefs.getString("lastEmail", "") ?: ""
+        val lastToken = prefs.getString("token",     "") ?: ""
+        if (lastEmail.isNotEmpty() && lastToken.isNotEmpty()) {
+            accountPrefs = accountPrefsFor(lastEmail)
+            token = lastToken
+            ApiRepository.setToken(token)
+            loadAccount()
+            if (loggedIn) refreshUserData()
+        } else {
+            accountPrefs = context.getSharedPreferences("academic_leveling_guest", Context.MODE_PRIVATE)
+        }
     }
 
     // ── Auth ──────────────────────────────────────────────────────────────
@@ -34,7 +46,7 @@ object AppState {
     var rank    by mutableStateOf(Rank.E)
 
     // ── Economy ───────────────────────────────────────────────────────────
-    var coins              by mutableStateOf(15000)
+    var coins              by mutableStateOf(0)
     var timeWarpCount      by mutableStateOf(0)
     var secondChanceCount  by mutableStateOf(0)
     var hintCount          by mutableStateOf(0)
@@ -51,8 +63,8 @@ object AppState {
     var newLevelVal by mutableStateOf(1)
 
     // ── Inventory / Equipment ─────────────────────────────────────────────
-    var inventory: List<Item>     by mutableStateOf(DEFAULT_INVENTORY)
-    var equipment: Equipment      by mutableStateOf(DEFAULT_EQUIPMENT)
+    var inventory: List<Item>  by mutableStateOf(DEFAULT_INVENTORY)
+    var equipment: Equipment   by mutableStateOf(DEFAULT_EQUIPMENT)
 
     // ── Achievements / Sessions ───────────────────────────────────────────
     var achievements:   List<Achievement>      by mutableStateOf(ALL_ACHIEVEMENTS)
@@ -60,23 +72,19 @@ object AppState {
     var quizHistory:    List<QuizHistoryEntry> by mutableStateOf(emptyList())
 
     // ── Quests ────────────────────────────────────────────────────────────
-    var quests: List<Quest> by mutableStateOf(listOf(
+    val defaultDailyQuests get() = listOf(
         Quest(1, "STUDY FOR 30 MINUTES",     10),
         Quest(2, "ANSWER A QUIZ",            15),
         Quest(3, "COMPLETE 1 HOMEWORK TASK", 15),
         Quest(4, "LOG A STUDY SESSION",      10)
-    ))
-    var weeklyQuests: List<Quest> by mutableStateOf(listOf(
+    )
+    val defaultWeeklyQuests get() = listOf(
         Quest(101, "20 MINUTES READING FOR 4 DAYS", 60),
         Quest(102, "COMPLETE 5 QUIZZES",            100),
         Quest(103, "COMPLETE 3 DAILY QUESTS",       200)
-    ))
-
-    // ── Bonus claim tracking ──────────────────────────────────────────────
-    // Stores the date string (e.g. "2026-05-03") when the daily bonus was last claimed
-    var dailyBonusClaimedDate  by mutableStateOf("")
-    // Stores the Monday date string (e.g. "2026-04-28") of the week the weekly bonus was last claimed
-    var weeklyBonusClaimedDate by mutableStateOf("")
+    )
+    var quests:       List<Quest> by mutableStateOf(defaultDailyQuests)
+    var weeklyQuests: List<Quest> by mutableStateOf(defaultWeeklyQuests)
 
     // ── Quizzes ───────────────────────────────────────────────────────────
     var myQuizzes:        List<Quiz> by mutableStateOf(emptyList())
@@ -95,55 +103,73 @@ object AppState {
     // ══════════════════════════════════════════════════════════════════════
 
     fun login(n: String, e: String, g: GradeLevel) {
-        name = n; email = e; grade = g; loggedIn = true; save()
+        name = n; email = e; grade = g; loggedIn = true; saveAccount()
     }
 
     fun quickLogin(n: String = "", e: String = "") {
         if (n.isNotBlank()) name = n
         if (name.isBlank()) name = "Player"
         if (e.isNotBlank()) email = e
-        loggedIn = true; save()
+        loggedIn = true; saveAccount()
     }
 
-    fun logout() { loggedIn = false; name = ""; token = ""; ApiRepository.logout(); save() }
+    fun logout() {
+        saveAccount()  // save progress before clearing
+        prefs.edit().remove("lastEmail").remove("token").apply()
+        resetState()
+        ApiRepository.logout()
+    }
 
     fun loginWithApi(response: LoginResponse) {
+        val accountEmail = response.data.email
         token = response.token
         ApiRepository.setToken(token)
-        name = response.data.username
-        email = response.data.email
-        // Progress (level, xp, coins) is stored locally — do NOT overwrite with API values
-        // so that progress is preserved across logout/login.
+
+        // Switch to this account's own prefs and load its saved progress
+        accountPrefs = accountPrefsFor(accountEmail)
+        loadAccount()
+
+        // Always trust server for identity
+        name  = response.data.username
+        email = accountEmail
         loggedIn = true
-        save()
+
+        prefs.edit()
+            .putString("token",     token)
+            .putString("lastEmail", accountEmail)
+            .apply()
+
+        saveAccount()
     }
 
     fun registerWithApi(response: RegisterResponse) {
+        val accountEmail = response.data.email
         token = response.token
         ApiRepository.setToken(token)
-        name = response.data.username
-        email = response.data.email
-        // Progress (level, xp, coins) is stored locally — do NOT overwrite with API values
-        // so that progress is preserved across logout/login.
 
-        // New account: reset quest progress and bonus claim dates so they start fresh
-        quests       = quests.map { it.copy(done = false) }
-        weeklyQuests = weeklyQuests.map { it.copy(done = false) }
-        dailyBonusClaimedDate  = ""
-        weeklyBonusClaimedDate = ""
-
+        // New account — fresh prefs, start from zero
+        accountPrefs = accountPrefsFor(accountEmail)
+        resetState()
+        name  = response.data.username
+        email = accountEmail
         loggedIn = true
-        save()
+
+        prefs.edit()
+            .putString("token",     token)
+            .putString("lastEmail", accountEmail)
+            .apply()
+
+        saveAccount()
     }
 
     fun refreshUserData(onComplete: () -> Unit = {}) {
         if (!loggedIn || token.isEmpty()) { onComplete(); return }
         ApiRepository.getUserInfo(
             onSuccess = { response ->
-                // Only sync identity fields — progress lives locally
-                name = response.data.username
+                // Only sync identity — progress lives locally per account
+                name  = response.data.username
                 email = response.data.email
-                save()
+                saveAccount()
                 onComplete()
             },
             onError = { onComplete() }
@@ -151,20 +177,16 @@ object AppState {
     }
 
     fun updateProfile(newName: String, newEmail: String) {
-        if (newName.isNotBlank()) name = newName
+        if (newName.isNotBlank())  name  = newName
         if (newEmail.isNotBlank()) email = newEmail
-        save()
+        saveAccount()
     }
 
     fun updateProfileWithApi(response: UpdateProfileResponse) {
-        name = response.data.username
+        // Only update identity fields, never local progress
+        name  = response.data.username
         email = response.data.email
-        level = response.data.progress.level
-        xp = response.data.progress.currentExp
-        maxXP = response.data.progress.expToNextLevel
-        coins = response.data.coins
-        totalXP = response.data.totalExp ?: 0
-        save()
+        saveAccount()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -178,7 +200,7 @@ object AppState {
             rank = getRank(level); newLevelVal = level; leveled = true
         }
         if (leveled) showLevelUp = true
-        checkAchievements(); save(); return leveled
+        checkAchievements(); saveAccount(); return leveled
     }
 
     fun dismissLevelUp() { showLevelUp = false }
@@ -187,7 +209,7 @@ object AppState {
     //  COINS & SHOP
     // ══════════════════════════════════════════════════════════════════════
 
-    fun addCoins(n: Int) { coins += n; save() }
+    fun addCoins(n: Int) { coins += n; saveAccount() }
 
     fun buyShopItem(item: ShopItem): Boolean {
         if (coins < item.cost) return false
@@ -199,14 +221,14 @@ object AppState {
             ShopEffect.STREAK_BANDAID -> streakBandaidCount = (streakBandaidCount + 1).coerceAtMost(item.maxStack)
             ShopEffect.XP_BOOST       -> addXP(100)
         }
-        save(); return true
+        saveAccount(); return true
     }
 
     fun useStreakBandaid(): Boolean {
         if (streakBandaidCount <= 0) return false
         streakBandaidCount--; streakAtRisk = false
         if (streak == 0) streak = 1
-        save(); return true
+        saveAccount(); return true
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -216,20 +238,20 @@ object AppState {
     fun equip(item: Item) {
         equipment = when (item.slot) {
             EquipSlot.WEAPON -> equipment.copy(weapon = item)
-            EquipSlot.ARMOR  -> equipment.copy(armor = item)
-            EquipSlot.ACC1   -> equipment.copy(acc1 = item)
-            EquipSlot.ACC2   -> equipment.copy(acc2 = item)
+            EquipSlot.ARMOR  -> equipment.copy(armor  = item)
+            EquipSlot.ACC1   -> equipment.copy(acc1   = item)
+            EquipSlot.ACC2   -> equipment.copy(acc2   = item)
             null             -> equipment
-        }; save()
+        }; saveAccount()
     }
 
     fun unequip(slot: EquipSlot) {
         equipment = when (slot) {
             EquipSlot.WEAPON -> equipment.copy(weapon = null)
-            EquipSlot.ARMOR  -> equipment.copy(armor = null)
-            EquipSlot.ACC1   -> equipment.copy(acc1 = null)
-            EquipSlot.ACC2   -> equipment.copy(acc2 = null)
-        }; save()
+            EquipSlot.ARMOR  -> equipment.copy(armor  = null)
+            EquipSlot.ACC1   -> equipment.copy(acc1   = null)
+            EquipSlot.ACC2   -> equipment.copy(acc2   = null)
+        }; saveAccount()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -243,67 +265,45 @@ object AppState {
         weeklyQuests = weeklyQuests.map { q ->
             if (q.id == id && !q.done) { addXP(q.exp); q.copy(done = true) } else q
         }
-        checkAchievements(); save()
+        checkAchievements(); saveAccount()
     }
 
-    /** Returns XP earned, or 0 if not all done or already claimed today. */
     fun claimBonus(): Int {
         if (!quests.all { it.done }) return 0
-        val today = todayDateKey()
-        if (dailyBonusClaimedDate == today) return 0
-        dailyBonusClaimedDate = today
-        addXP(50); addCoins(20)
-        save()
-        return 50
+        addXP(50); addCoins(20); saveAccount(); return 50
     }
 
-    /** Returns XP earned, or 0 if not all done or already claimed this week. */
     fun claimWeeklyBonus(): Int {
         if (!weeklyQuests.all { it.done }) return 0
-        val thisWeek = currentWeekKey()
-        if (weeklyBonusClaimedDate == thisWeek) return 0
-        weeklyBonusClaimedDate = thisWeek
-        addXP(100); addCoins(50)
-        save()
-        return 100
+        addXP(100); addCoins(50); saveAccount(); return 100
     }
 
-    fun isDailyBonusClaimed():  Boolean = dailyBonusClaimedDate  == todayDateKey()
-    fun isWeeklyBonusClaimed(): Boolean = weeklyBonusClaimedDate == currentWeekKey()
-
-    fun questsDone()  = quests.count { it.done }
-    fun weeklyDone()  = weeklyQuests.count { it.done }
+    fun isDailyBonusClaimed():  Boolean = false
+    fun isWeeklyBonusClaimed(): Boolean = false
+    fun questsDone() = quests.count { it.done }
+    fun weeklyDone() = weeklyQuests.count { it.done }
 
     // ══════════════════════════════════════════════════════════════════════
     //  QUIZZES
     // ══════════════════════════════════════════════════════════════════════
 
     fun addQuiz(q: Quiz) {
-        myQuizzes = myQuizzes + q
-        addXP(30)
-        checkAchievements(4)
-        save()
+        myQuizzes = myQuizzes + q; addXP(30); checkAchievements(4); saveAccount()
     }
 
-    fun editQuiz(q: Quiz)   { myQuizzes = myQuizzes.map { if (it.id == q.id) q else it }; save() }
-    fun deleteQuiz(id: Int) { myQuizzes = myQuizzes.filter { it.id != id }; save() }
+    fun editQuiz(q: Quiz)   { myQuizzes = myQuizzes.map { if (it.id == q.id) q else it }; saveAccount() }
+    fun deleteQuiz(id: Int) { myQuizzes = myQuizzes.filter { it.id != id }; saveAccount() }
 
     fun findByCode(code: String): Quiz? =
-        (myQuizzes + communityQuizzes).firstOrNull {
-            it.code.equals(code.trim(), ignoreCase = true)
-        }
+        (myQuizzes + communityQuizzes).firstOrNull { it.code.equals(code.trim(), ignoreCase = true) }
 
     fun recordQuizResult(quiz: Quiz, score: Int, answers: List<AnswerRecord>) {
-        val entry = QuizHistoryEntry(
-            quiz.id, quiz.title, quiz.code, todayString(), score, quiz.questions.size, answers
-        )
+        val entry = QuizHistoryEntry(quiz.id, quiz.title, quiz.code, todayString(), score, quiz.questions.size, answers)
         quizHistory = (listOf(entry) + quizHistory).take(50)
-        quizzesCompleted++
-        addCoins(score * 5)
-        completeQuest(2)
+        quizzesCompleted++; addCoins(score * 5); completeQuest(2)
         val isMine = myQuizzes.any { it.id == quiz.id }
         if (!isMine) ApiRepository.notifyQuizComplete(quiz.id)
-        checkAchievements(); save()
+        checkAchievements(); saveAccount()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -314,7 +314,7 @@ object AppState {
         totalMins += mins; streak++; streakAtRisk = false
         val earned = mins * 2; addXP(earned); addCoins(mins)
         sessionHistory = (listOf(SessionEntry(shortDate(), mins, earned)) + sessionHistory).take(10)
-        completeQuest(1); completeQuest(4); checkAchievements(); save()
+        completeQuest(1); completeQuest(4); checkAchievements(); saveAccount()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -328,7 +328,7 @@ object AppState {
                 earned = a.coinReward; addCoins(a.coinReward); a.copy(claimed = true)
             } else a
         }
-        if (earned > 0) save()
+        if (earned > 0) saveAccount()
         return earned
     }
 
@@ -351,13 +351,13 @@ object AppState {
         }
     }
 
-    fun unlockSpeedDemon()    {
-        achievements = achievements.map { if (it.id == 10) it.copy(unlocked = true) else it }; save()
+    fun unlockSpeedDemon() {
+        achievements = achievements.map { if (it.id == 10) it.copy(unlocked = true) else it }; saveAccount()
     }
 
     fun unlockPopularCreator() {
         achievements = achievements.map { if (it.id == 11) it.copy(unlocked = true) else it }
-        addCoins(50); save()
+        addCoins(50); saveAccount()
     }
 
     fun getActivePerks(): List<Perk> = emptyList()
@@ -366,79 +366,90 @@ object AppState {
     //  DATE HELPERS
     // ══════════════════════════════════════════════════════════════════════
 
-    /** Returns today as "yyyy-MM-dd", e.g. "2026-05-03" */
-    private fun todayDateKey(): String {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        return sdf.format(java.util.Date())
-    }
+    private fun todayDateKey(): String =
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
 
-    /**
-     * Returns the Monday of the current week as "yyyy-MM-dd".
-     * This is the stable key used to identify the current week.
-     */
     private fun currentWeekKey(): String {
         val cal = java.util.Calendar.getInstance()
         cal.firstDayOfWeek = java.util.Calendar.MONDAY
         cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        return sdf.format(cal.time)
+        return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(cal.time)
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    //  PERSIST
+    //  PRIVATE HELPERS
     // ══════════════════════════════════════════════════════════════════════
 
-    fun save() {
-        if (!::prefs.isInitialized) return
-        prefs.edit().apply {
+    /** Returns a SharedPreferences file unique to one account email. */
+    private fun accountPrefsFor(accountEmail: String): SharedPreferences {
+        val key = accountEmail.replace(Regex("[^a-zA-Z0-9_]"), "_")
+        return appContext.getSharedPreferences("account_$key", Context.MODE_PRIVATE)
+    }
+
+    /** Resets all in-memory progress to fresh-account defaults. */
+    private fun resetState() {
+        name = ""; email = ""; token = ""; grade = null; loggedIn = false
+        level = 1; xp = 0; totalXP = 0; maxXP = xpForNext(1); rank = Rank.E
+        coins = 0; streak = 0; totalMins = 0; quizzesCompleted = 0
+        streakAtRisk = false; showLevelUp = false; newLevelVal = 1
+        timeWarpCount = 0; secondChanceCount = 0; hintCount = 0; streakBandaidCount = 0
+        inventory    = DEFAULT_INVENTORY
+        equipment    = DEFAULT_EQUIPMENT
+        achievements = ALL_ACHIEVEMENTS
+        sessionHistory = emptyList(); quizHistory = emptyList()
+        quests       = defaultDailyQuests
+        weeklyQuests = defaultWeeklyQuests
+        myQuizzes    = emptyList()
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  PERSIST  (per-account)
+    // ══════════════════════════════════════════════════════════════════════
+
+    fun saveAccount() {
+        if (!::accountPrefs.isInitialized) return
+        accountPrefs.edit().apply {
             putString("name",  name);  putString("email", email)
-            putString("token", token)
             putString("grade", grade?.name); putBoolean("loggedIn", loggedIn)
-            putInt("level", level); putInt("xp", xp); putInt("totalXP", totalXP)
-            putInt("streak", streak); putInt("totalMins", totalMins)
+            putInt("level",   level);  putInt("xp",      xp);  putInt("totalXP", totalXP)
+            putInt("streak",  streak); putInt("totalMins", totalMins)
             putInt("quizzesCompleted", quizzesCompleted)
             putBoolean("streakAtRisk", streakAtRisk)
             putInt("coins", coins)
-            putInt("twc",   timeWarpCount);    putInt("scc", secondChanceCount)
-            putInt("hintc", hintCount);        putInt("sbc", streakBandaidCount)
+            putInt("twc",   timeWarpCount);    putInt("scc",   secondChanceCount)
+            putInt("hintc", hintCount);        putInt("sbc",   streakBandaidCount)
             putString("quests",       gson.toJson(quests))
             putString("wquests",      gson.toJson(weeklyQuests))
             putString("myQuizzes",    gson.toJson(myQuizzes))
             putString("achievements", gson.toJson(achievements))
             putString("sessions",     gson.toJson(sessionHistory))
             putString("quizHistory",  gson.toJson(quizHistory))
-            putString("dailyBonusClaimed",  dailyBonusClaimedDate)
-            putString("weeklyBonusClaimed", weeklyBonusClaimedDate)
         }.apply()
     }
 
-    private fun load() {
-        if (!::prefs.isInitialized) return
-        name     = prefs.getString("name",  "") ?: ""
-        email    = prefs.getString("email", "") ?: ""
-        token    = prefs.getString("token", "") ?: ""
-        if (token.isNotEmpty()) {
-            ApiRepository.setToken(token)
-        }
-        grade    = prefs.getString("grade", null)
-            ?.let { try { GradeLevel.valueOf(it) } catch (_: Exception) { null } }
-        loggedIn = prefs.getBoolean("loggedIn", false)
-        level    = prefs.getInt("level", 1)
-        xp       = prefs.getInt("xp", 0)
-        totalXP  = prefs.getInt("totalXP", 0)
-        streak   = prefs.getInt("streak", 0)
-        totalMins        = prefs.getInt("totalMins", 0)
-        quizzesCompleted = prefs.getInt("quizzesCompleted", 0)
-        streakAtRisk     = prefs.getBoolean("streakAtRisk", false)
-        coins            = prefs.getInt("coins", 15000)
-        timeWarpCount      = prefs.getInt("twc",   0)
-        secondChanceCount  = prefs.getInt("scc",   0)
-        hintCount          = prefs.getInt("hintc", 0)
-        streakBandaidCount = prefs.getInt("sbc",   0)
-        maxXP = xpForNext(level); rank = getRank(level)
+    // kept for compatibility — delegates to saveAccount
+    fun save() = saveAccount()
 
-        dailyBonusClaimedDate  = prefs.getString("dailyBonusClaimed",  "") ?: ""
-        weeklyBonusClaimedDate = prefs.getString("weeklyBonusClaimed", "") ?: ""
+    private fun loadAccount() {
+        if (!::accountPrefs.isInitialized) return
+        name     = accountPrefs.getString("name",  "") ?: ""
+        email    = accountPrefs.getString("email", "") ?: ""
+        grade    = accountPrefs.getString("grade", null)
+            ?.let { try { GradeLevel.valueOf(it) } catch (_: Exception) { null } }
+        loggedIn = accountPrefs.getBoolean("loggedIn", false)
+        level    = accountPrefs.getInt("level",   1)
+        xp       = accountPrefs.getInt("xp",      0)
+        totalXP  = accountPrefs.getInt("totalXP", 0)
+        streak   = accountPrefs.getInt("streak",  0)
+        totalMins        = accountPrefs.getInt("totalMins",        0)
+        quizzesCompleted = accountPrefs.getInt("quizzesCompleted", 0)
+        streakAtRisk     = accountPrefs.getBoolean("streakAtRisk", false)
+        coins            = accountPrefs.getInt("coins", 0)
+        timeWarpCount      = accountPrefs.getInt("twc",   0)
+        secondChanceCount  = accountPrefs.getInt("scc",   0)
+        hintCount          = accountPrefs.getInt("hintc", 0)
+        streakBandaidCount = accountPrefs.getInt("sbc",   0)
+        maxXP = xpForNext(level); rank = getRank(level)
 
         val questType   = object : TypeToken<List<Quest>>()            {}.type
         val quizType    = object : TypeToken<List<Quiz>>()             {}.type
@@ -446,30 +457,27 @@ object AppState {
         val sessionType = object : TypeToken<List<SessionEntry>>()     {}.type
         val historyType = object : TypeToken<List<QuizHistoryEntry>>() {}.type
 
-        prefs.getString("quests",       null)?.let { s -> try { quests         = gson.fromJson(s, questType)   } catch (_: Exception) {} }
-        prefs.getString("wquests",      null)?.let { s -> try { weeklyQuests   = gson.fromJson(s, questType)   } catch (_: Exception) {} }
-        prefs.getString("myQuizzes",    null)?.let { s -> try { myQuizzes      = gson.fromJson(s, quizType)    } catch (_: Exception) {} }
-        prefs.getString("achievements", null)?.let { s -> try { achievements   = gson.fromJson(s, achType)     } catch (_: Exception) {} }
-        prefs.getString("sessions",     null)?.let { s -> try { sessionHistory = gson.fromJson(s, sessionType) } catch (_: Exception) {} }
-        prefs.getString("quizHistory",  null)?.let { s -> try { quizHistory    = gson.fromJson(s, historyType) } catch (_: Exception) {} }
+        accountPrefs.getString("quests",       null)?.let { s -> try { quests         = gson.fromJson(s, questType)   } catch (_: Exception) {} }
+        accountPrefs.getString("wquests",      null)?.let { s -> try { weeklyQuests   = gson.fromJson(s, questType)   } catch (_: Exception) {} }
+        accountPrefs.getString("myQuizzes",    null)?.let { s -> try { myQuizzes      = gson.fromJson(s, quizType)    } catch (_: Exception) {} }
+        accountPrefs.getString("achievements", null)?.let { s -> try { achievements   = gson.fromJson(s, achType)     } catch (_: Exception) {} }
+        accountPrefs.getString("sessions",     null)?.let { s -> try { sessionHistory = gson.fromJson(s, sessionType) } catch (_: Exception) {} }
+        accountPrefs.getString("quizHistory",  null)?.let { s -> try { quizHistory    = gson.fromJson(s, historyType) } catch (_: Exception) {} }
 
         // Reset daily quests if it's a new day
         val today = todayDateKey()
-        val lastDailyReset = prefs.getString("lastDailyReset", "") ?: ""
+        val lastDailyReset = accountPrefs.getString("lastDailyReset", "") ?: ""
         if (lastDailyReset != today) {
             quests = quests.map { it.copy(done = false) }
-            // Only clear the claimed flag if it's also a new day (not just a reset)
-            if (dailyBonusClaimedDate != today) dailyBonusClaimedDate = ""
-            prefs.edit().putString("lastDailyReset", today).apply()
+            accountPrefs.edit().putString("lastDailyReset", today).apply()
         }
 
         // Reset weekly quests if it's a new week
         val thisWeek = currentWeekKey()
-        val lastWeeklyReset = prefs.getString("lastWeeklyReset", "") ?: ""
+        val lastWeeklyReset = accountPrefs.getString("lastWeeklyReset", "") ?: ""
         if (lastWeeklyReset != thisWeek) {
             weeklyQuests = weeklyQuests.map { it.copy(done = false) }
-            if (weeklyBonusClaimedDate != thisWeek) weeklyBonusClaimedDate = ""
-            prefs.edit().putString("lastWeeklyReset", thisWeek).apply()
+            accountPrefs.edit().putString("lastWeeklyReset", thisWeek).apply()
         }
     }
 }
