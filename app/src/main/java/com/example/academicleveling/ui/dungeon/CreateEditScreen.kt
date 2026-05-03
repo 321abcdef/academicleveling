@@ -572,7 +572,7 @@ fun CreateEditScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Icon(Icons.Default.Save, null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Text(
-                                if (isEdit) "SAVE CHANGES" else "SAVE QUIZ  (+30 XP)",
+                                if (isEdit) "SAVE CHANGES" else "SAVE QUIZ",
                                 fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.White
                             )
                         }

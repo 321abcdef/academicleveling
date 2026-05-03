@@ -398,7 +398,6 @@ object AppState {
 
     fun addQuiz(q: Quiz) {
         myQuizzes = myQuizzes + q
-        addXP(30)
         checkAchievements(4)
         save()
     }
