@@ -80,6 +80,36 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
         if (filtered.isNotEmpty()) listState.animateScrollToItem(0)
     }
 
+    // Infinite Scroll Logic
+    val canLoadMore = AppState.canLoadMoreCommunity
+    val isMoreLoading = AppState.isCommunityLoading && filtered.isNotEmpty()
+
+    // Use filters and canLoadMore as keys so the effect stays synced with current state
+    LaunchedEffect(listState, canLoadMore, debouncedSearch, filterDiff, filterGrade) {
+        snapshotFlow { 
+            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            // We track both the index and the loading state so that when loading finishes, 
+            // the check runs again even if the user hasn't moved the scrollbar.
+            (lastItem?.index ?: 0) to AppState.isCommunityLoading
+        }.collect { (lastIndex, isApiLoading) ->
+            val totalItems = listState.layoutInfo.totalItemsCount
+            
+            // Trigger load when 5 items away from bottom
+            if (lastIndex >= totalItems - 5 && canLoadMore && !isApiLoading) {
+                val apiGrade = when(filterGrade) {
+                    "All" -> null
+                    "College" -> "college"
+                    else -> filterGrade.lowercase()
+                }
+                AppState.loadMoreCommunityQuizzes(
+                    search = if (debouncedSearch.isBlank()) null else debouncedSearch,
+                    difficulty = filterDiff?.name?.lowercase(),
+                    gradeLevel = apiGrade
+                )
+            }
+        }
+    }
+
     SpaceBackground {
         Column(Modifier.fillMaxSize()) {
             SubPageBar("COMMUNITY QUIZZES", onBack)
@@ -249,6 +279,19 @@ fun CommunityScreen(onBack: () -> Unit, onPlay: (Quiz) -> Unit) {
                                         )
                                 }
                                 ActionChip("PLAY NOW", SuccessGreen) { onPlay(quiz) }
+                            }
+                        }
+                    }
+
+                    if (isMoreLoading) {
+                        item {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = Teal, modifier = Modifier.size(32.dp))
                             }
                         }
                     }

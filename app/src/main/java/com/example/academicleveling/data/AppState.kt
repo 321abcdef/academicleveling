@@ -68,6 +68,11 @@ object AppState {
     var myQuizzes:        List<Quiz> by mutableStateOf(emptyList())
     var communityQuizzes: List<Quiz> by mutableStateOf(emptyList())
 
+    var communityCurrentPage by mutableStateOf(1)
+    var communityLastPage    by mutableStateOf(1)
+    var canLoadMoreCommunity by mutableStateOf(false)
+    var isCommunityLoading   by mutableStateOf(false)
+
     val SHOP_ITEMS: List<ShopItem> = listOf(
         ShopItem(1, "Time Warp",       "Adds +30s to your quiz timer.",               100, ShopEffect.TIME_WARP),
         ShopItem(2, "50/50",           "Eliminates 2 wrong options on MC questions.",  200, ShopEffect.SECOND_CHANCE),
@@ -173,55 +178,97 @@ object AppState {
         gradeLevel: String? = null,
         onComplete: (List<Quiz>) -> Unit = {}
     ) {
+        isCommunityLoading = true
         ApiRepository.getQuizzes(
             search = search,
             difficulty = difficulty,
             gradeLevel = gradeLevel,
+            page = 1,
             onSuccess = { response ->
-                val quizzes = response.data.map { apiQuiz ->
-                    Quiz(
-                        id = apiQuiz.id,
-                        title = apiQuiz.title,
-                        description = apiQuiz.description,
-                        creator = apiQuiz.user.name,
-                        creatorName = apiQuiz.user.name,
-                        questions = emptyList(),
-                        questionsCount = apiQuiz.questionsCount,
-                        exp = apiQuiz.questionsCount * 20,
-                        quizType = when(apiQuiz.type.lowercase().trim()) {
-                            "multiple_choice" -> QuizType.MULTIPLE_CHOICE
-                            "true_false"      -> QuizType.TRUE_FALSE
-                            "identification"  -> QuizType.IDENTIFICATION
-                            "mixed"           -> QuizType.MIX
-                            else              -> QuizType.MIX
-                        },
-                        timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
-                            "quiz" -> QuizTimerMode.WHOLE_QUIZ
-                            "question" -> QuizTimerMode.PER_QUESTION
-                            else -> QuizTimerMode.NONE
-                        },
-                        timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
-                            "quiz" -> apiQuiz.questionsCount * 30
-                            "question" -> 30
-                            else -> 0
-                        },
-                        subject = apiQuiz.subject,
-                        gradeLevel = apiQuiz.gradeLevel,
-                        difficulty = when(apiQuiz.difficulty.lowercase()) {
-                            "easy" -> Difficulty.EASY
-                            "hard" -> Difficulty.HARD
-                            else -> Difficulty.MEDIUM
-                        },
-                        code = apiQuiz.quizCode,
-                        dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
-                        shuffleQuestions = apiQuiz.isQuestionShuffled,
-                        shuffleOptions = apiQuiz.isChoicesShuffled
-                    )
-                }
+                val quizzes = response.data.map { apiQuiz -> mapApiQuizToQuiz(apiQuiz) }
                 communityQuizzes = quizzes
+                communityCurrentPage = response.meta?.currentPage ?: 1
+                communityLastPage = response.meta?.lastPage ?: 1
+                canLoadMoreCommunity = communityCurrentPage < communityLastPage
+                isCommunityLoading = false
                 onComplete(quizzes)
             },
-            onError = { onComplete(emptyList()) }
+            onError = { 
+                isCommunityLoading = false
+                onComplete(emptyList()) 
+            }
+        )
+    }
+
+    fun loadMoreCommunityQuizzes(
+        search: String? = null,
+        difficulty: String? = null,
+        gradeLevel: String? = null,
+        onComplete: (List<Quiz>) -> Unit = {}
+    ) {
+        if (isCommunityLoading || !canLoadMoreCommunity) return
+
+        isCommunityLoading = true
+        val nextPage = communityCurrentPage + 1
+        ApiRepository.getQuizzes(
+            search = search,
+            difficulty = difficulty,
+            gradeLevel = gradeLevel,
+            page = nextPage,
+            onSuccess = { response ->
+                val newQuizzes = response.data.map { apiQuiz -> mapApiQuizToQuiz(apiQuiz) }
+                communityQuizzes = communityQuizzes + newQuizzes
+                communityCurrentPage = response.meta?.currentPage ?: nextPage
+                communityLastPage = response.meta?.lastPage ?: communityLastPage
+                canLoadMoreCommunity = communityCurrentPage < communityLastPage
+                isCommunityLoading = false
+                onComplete(newQuizzes)
+            },
+            onError = {
+                isCommunityLoading = false
+                onComplete(emptyList())
+            }
+        )
+    }
+
+    private fun mapApiQuizToQuiz(apiQuiz: QuizApiData): Quiz {
+        return Quiz(
+            id = apiQuiz.id,
+            title = apiQuiz.title,
+            description = apiQuiz.description,
+            creator = apiQuiz.user.name,
+            creatorName = apiQuiz.user.name,
+            questions = emptyList(),
+            questionsCount = apiQuiz.questionsCount,
+            exp = apiQuiz.questionsCount * 20,
+            quizType = when(apiQuiz.type.lowercase().trim()) {
+                "multiple_choice" -> QuizType.MULTIPLE_CHOICE
+                "true_false"      -> QuizType.TRUE_FALSE
+                "identification"  -> QuizType.IDENTIFICATION
+                "mixed"           -> QuizType.MIX
+                else              -> QuizType.MIX
+            },
+            timerMode = when(apiQuiz.timerMode.lowercase().trim()) {
+                "quiz" -> QuizTimerMode.WHOLE_QUIZ
+                "question" -> QuizTimerMode.PER_QUESTION
+                else -> QuizTimerMode.NONE
+            },
+            timerSeconds = when(apiQuiz.timerMode.lowercase().trim()) {
+                "quiz" -> apiQuiz.questionsCount * 30
+                "question" -> 30
+                else -> 0
+            },
+            subject = apiQuiz.subject,
+            gradeLevel = apiQuiz.gradeLevel,
+            difficulty = when(apiQuiz.difficulty.lowercase()) {
+                "easy" -> Difficulty.EASY
+                "hard" -> Difficulty.HARD
+                else -> Difficulty.MEDIUM
+            },
+            code = apiQuiz.quizCode,
+            dateCreated = apiQuiz.createdAt.split("T").firstOrNull() ?: "",
+            shuffleQuestions = apiQuiz.isQuestionShuffled,
+            shuffleOptions = apiQuiz.isChoicesShuffled
         )
     }
 
